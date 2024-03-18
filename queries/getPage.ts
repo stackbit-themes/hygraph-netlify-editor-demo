@@ -2,8 +2,6 @@ import { request } from "graphql-request";
 import { graphql } from "../gql"
 import type { Stage } from "../gql/graphql";
 
-// const endpoint = import.meta.env.HYGRAPH_ENDPOINT;
-
 const query = graphql(`
   query Page($slug: String!, $stage: Stage! = PUBLISHED) {
     page(where: { slug: $slug }, stage: $stage) {

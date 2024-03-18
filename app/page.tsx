@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
+import { draftMode } from "next/headers";
 import type { PageQuery } from "@/gql/graphql";
 import { getPage } from "@/queries/getPage";
 import ComponentRenderer from "@/components/ComponentRenderer";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { page }: PageQuery = await getPage("home" as string, "PUBLISHED");
+  const { isEnabled } = draftMode();
+
+  const { page }: PageQuery = await getPage(
+    "home" as string,
+    isEnabled ? "DRAFT" : "PUBLISHED"
+  );
 
   return {
-    title: page?.title || "",
+    title: isEnabled ? `⚡️ ${page?.title}` : page?.title || "",
     description: page?.description || "",
     openGraph: {
       type: "website",
@@ -23,7 +29,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const { page }: PageQuery = await getPage("home", "PUBLISHED");
+  const { isEnabled } = draftMode();
+
+  const { page }: PageQuery = await getPage(
+    "home",
+    isEnabled ? "DRAFT" : "PUBLISHED"
+  );
 
   return (
     <main className="max-w-screen-2xl mx-auto">
