@@ -2,6 +2,7 @@ import Image from "next/image";
 
 interface Props {
   __typename: string;
+  index: number;
   productFocus: {
     image: {
       url: string;
@@ -12,9 +13,9 @@ interface Props {
     cta: string;
   };
 }
-export default function ProductHighlight({ productFocus }: Props) {
+export default function ProductHighlight({ productFocus, index }: Props) {
   return (
-    <section className="md:aspect-[1440/722] relative">
+    <section className="md:aspect-[1440/722] relative" data-sb-field-path={`.${index}`}>
       <Image
         src={productFocus.image.url}
         alt={productFocus.title}

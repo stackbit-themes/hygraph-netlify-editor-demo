@@ -37,8 +37,8 @@ export default async function Home() {
   );
 
   return (
-    <main className="max-w-screen-2xl mx-auto">
-      <section className="mb-12">
+    <main className="max-w-screen-2xl mx-auto" data-sb-object-id={page?.id}>
+      <section className="mb-12" data-sb-field-path=".components">
         <ComponentRenderer data={page?.components} />
       </section>
     </main>

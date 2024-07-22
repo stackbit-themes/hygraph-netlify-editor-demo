@@ -2,6 +2,7 @@ import Image from "next/image";
 
 interface Props {
   __typename: string;
+  index: number;
   title: string;
   chapeau: string;
   description: string;
@@ -19,9 +20,10 @@ export default function Routine({
   title,
   description,
   image,
+  index,
 }: Props) {
   return (
-    <section className="py-16 relative bg-light">
+    <section className="py-16 relative bg-light" data-sb-field-path={`.${index}`}>
       <Image
         src={image.url}
         alt={title}

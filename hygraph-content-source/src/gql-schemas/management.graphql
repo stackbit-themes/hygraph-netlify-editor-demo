@@ -1,0 +1,5530 @@
+# This file was generated. Do not edit manually.
+
+schema {
+    query: Query
+    mutation: Mutation
+    subscription: Subscription
+}
+
+directive @authThirdParty on OBJECT | FIELD_DEFINITION | INPUT_OBJECT
+
+directive @cacheControl(maxAge: Int, scope: CacheControlScope) on OBJECT | FIELD_DEFINITION | INTERFACE
+
+directive @deactivateVia(env: String!) on OBJECT | FIELD_DEFINITION
+
+directive @deprecatedInput(reason: String!) on INPUT_FIELD_DEFINITION
+
+interface IApp {
+    apiId: String!
+    author: ID!
+    avatarUrl: String!
+    configurationUrl: String
+    createdAt: DateTime!
+    description: String!
+    elements: [IAppElement!]
+    id: ID!
+    name: String!
+    permissions: AppPermissions!
+    publicationStatus: AppPublicationStatus!
+    setupUrl: String!
+    updatedAt: DateTime!
+    webhookUrl: String
+}
+
+interface IAppElement {
+    apiId: String!
+    app: App!
+    config: JSON
+    createdAt: DateTime!
+    description: String
+    id: ID!
+    name: String!
+    src: String!
+    type: AppElementType!
+    updatedAt: DateTime!
+}
+
+interface IAssetConfig {
+    apiKey: String!
+}
+
+interface IContentPermission {
+    createdAt: DateTime!
+    enabled: Boolean!
+    id: ID!
+    model: IModel
+    target: ContentPermissionTarget!
+    updatedAt: DateTime!
+}
+
+interface IContentViewColumn {
+    id: ID!
+    isVisible: Boolean!
+    position: Int!
+    type: ContentViewColumnType!
+    width: Int
+}
+
+interface IExtension {
+    apiId: String!
+    config: JSON!
+    createdAt: DateTime!
+    createdBy: Member
+    description: String
+    environment: Environment!
+    id: ID!
+    isActive: Boolean!
+    meta: JSON
+    name: String
+    neededPermissions: [AvailableExtensionPermission!]!
+    "Location for the source if the source type is an external one"
+    src: String!
+    "The type indicating where the source for the extension will be obtained from"
+    srcType: ExtensionSrcType!
+    updatedAt: DateTime!
+    updatedBy: Member
+}
+
+interface IField {
+    apiId: String!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfig!
+    id: ID!
+    isHidden: Boolean! @deprecated(reason: "Use visibility instead")
+    isList: Boolean!
+    isSystem: Boolean!
+    meta: JSON
+    "This will throw a runtime error for fields that are on a component instead of model!"
+    model: IModel! @deprecated(reason: "Use parent instead")
+    parent: IFieldParent!
+    position: Int!
+    tableConfig: FieldConfig!
+    updatedAt: DateTime!
+    visibility: VisibilityTypes!
+}
+
+interface IFieldParent {
+    apiId: String!
+    displayName: String!
+    id: ID!
+}
+
+interface IIntegration {
+    createdAt: DateTime!
+    description: String
+    displayName: String
+    id: ID!
+    updatedAt: DateTime!
+}
+
+interface ILocalizableField {
+    isLocalized: Boolean!
+}
+
+interface IModel {
+    apiId: String!
+    apiIdPlural: String!
+    contentViews(filter: ContentViewFilterInput, includeSystemContentViews: Boolean = false): [ContentView!]!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    environment: Environment!
+    field(id: ID!): IField!
+    fields(includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false): [IField!]!
+    fieldsConnection(first: Int! = 25, includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false, includeSystemFields: Boolean = true, skip: Int! = 0): FieldsConnection!
+    "Model has at least one document"
+    hasContent: Boolean!
+    hasLocalizedComponents: Boolean!
+    id: ID!
+    isLocalized: Boolean!
+    isSystem: Boolean!
+    isVersioned: Boolean!
+    sidebarElements: [ISidebarElement!]!
+    titleFields: [IField!]!
+    updatedAt: DateTime!
+    viewerPermission: ModelViewerPermission!
+}
+
+interface IPendingProject {
+    description: String
+    id: ID!
+    name: String!
+    picture: String
+}
+
+interface IRecentSchemaChange {
+    createdAt: DateTime!
+    description: String
+    displayName: String!
+    id: ID!
+    updatedAt: DateTime!
+}
+
+interface IRemoteFieldConfig {
+    cacheTTLSeconds: Int
+    forwardClientHeaders: Boolean!
+    "Headers that will be sent to the remote source. Those headers will override the headers defined on the remote source if setup"
+    headers: JSON
+    method: RemoteFieldApiMethod!
+    remoteSource: IRemoteSource!
+    returnType: RemoteTypeDefinition!
+}
+
+interface IRemoteSource {
+    createdAt: DateTime!
+    debugEnabled: Boolean!
+    description: String
+    displayName: String!
+    """
+
+    Optional headers that will be sent to the remote source on every remote field. In case the remote field is using the same
+    Header Keys, the values will be overridden
+    """
+    headers: JSON
+    id: ID!
+    kind: RemoteSourceKind
+    oAuth: JSON
+    prefix: String!
+    remoteTypeDefinitionsConnection(first: Int! = 25, isUserDefined: Boolean, remoteGraphQLTypes: [REMOTE_GRAPHQL_TYPE!], skip: Int! = 0): RemoteTypeDefinitionsConnection!
+    type: RemoteSourceType!
+    updatedAt: DateTime!
+    url: String!
+}
+
+interface IRequireableField {
+    isRequired: Boolean!
+}
+
+interface ISchemaMigrationPayload {
+    migration: Migration!
+}
+
+interface ISidebarElement {
+    config: JSON
+    createdAt: DateTime!
+    description: String
+    displayName: String!
+    id: ID!
+    isEnabled: Boolean!
+    model: IModel!
+    position: Int!
+    updatedAt: DateTime!
+}
+
+interface ITemplate {
+    coverPicture: String
+    description: String
+    details: String
+    id: ID!
+    name: String!
+    picture: String
+    resources: [TemplateResource!]!
+}
+
+interface ITitleableField {
+    isTitle: Boolean!
+}
+
+interface IUnionField {
+    "True if this field is the reverse side of the initally created union field"
+    isMemberType: Boolean!
+    union: Union!
+}
+
+interface IUniqueableField {
+    isUnique: Boolean!
+}
+
+interface IUser {
+    createdAt: DateTime!
+    id: ID!
+    preferences: JSON
+    profile: Profile!
+    updatedAt: DateTime!
+}
+
+interface IViewer {
+    availableExtensionPermissions: [AvailableExtensionPermission!]!
+    availableExtensionSrcTypes: [ExtensionSrcType!]!
+    availableIntegrations: [INTEGRATION_PROVIDER!]!
+    id: ID!
+    plans: [Plan!]!
+    project(id: ID): Project
+    regions: [Region!]!
+    templates: [ITemplate!]!
+}
+
+union AuditLogTriggeredBy = Member | PermanentAuthToken
+
+union CloningFrom = Project | StarterTemplate | Template
+
+union ContentPermissionTarget = ContentPermissionAppTokenTarget | ContentPermissionPermanentAuthTokenTarget | ContentPermissionPublicTarget | ContentPermissionRoleTarget
+
+union CreatedBy = AppToken | Member | PermanentAuthToken
+
+union NetlifyStateTriggeredBy = Member | PermanentAuthToken
+
+union ProjectChangedPayload = ProjectChangeCompletedCloning
+
+union SidebarElements = AppSidebarElement | CustomSidebarElement | ExtensionSidebarElement | SystemSidebarElement
+
+union SimpleFieldValidations = FloatFieldValidations | IntFieldValidations | StringFieldValidations
+
+type App implements IApp {
+    apiId: String!
+    author: ID!
+    avatarUrl: String!
+    configurationUrl: String
+    createdAt: DateTime!
+    description: String!
+    elements: [IAppElement!]
+    id: ID!
+    name: String!
+    permissions: AppPermissions!
+    publicationStatus: AppPublicationStatus!
+    setupUrl: String!
+    updatedAt: DateTime!
+    webhookUrl: String
+}
+
+type AppInstallation {
+    app: App!
+    authToken: String!
+    config: JSON!
+    createdAt: DateTime!
+    environment: Environment!
+    fields: [IField!]!
+    id: ID!
+    sidebarElements: [AppSidebarElement!]!
+    status: AppInstallationStatus!
+    updatedAt: DateTime!
+}
+
+type AppPermissions {
+    CONTENT: AppContentPermission!
+    SCHEMA: AppSchemaPermission!
+    USER: AppUserPermission!
+    WEBHOOKS: AppWebhooksPermission!
+}
+
+type AppSidebarElement implements ISidebarElement {
+    appElement: FormSidebarAppElement!
+    appInstallation: AppInstallation!
+    config: JSON
+    createdAt: DateTime!
+    description: String
+    displayName: String!
+    id: ID!
+    isEnabled: Boolean!
+    model: IModel!
+    position: Int!
+    updatedAt: DateTime!
+}
+
+type AppToken {
+    app: App!
+    id: ID!
+}
+
+type AppTokenViewer implements IViewer {
+    availableExtensionPermissions: [AvailableExtensionPermission!]!
+    availableExtensionSrcTypes: [ExtensionSrcType!]!
+    availableIntegrations: [INTEGRATION_PROVIDER!]!
+    id: ID!
+    plans: [Plan!]!
+    project(id: ID): Project
+    regions: [Region!]!
+    templates: [ITemplate!]!
+    user(id: ID!): UserForApp!
+}
+
+type AppWithSecrets implements IApp {
+    apiId: String!
+    author: ID!
+    avatarUrl: String!
+    clientId: String
+    clientSecret: String
+    configurationUrl: String
+    createdAt: DateTime!
+    description: String!
+    elements: [IAppElement!]
+    id: ID!
+    name: String!
+    permissions: AppPermissions!
+    publicationStatus: AppPublicationStatus!
+    setupUrl: String!
+    updatedAt: DateTime!
+    webhookUrl: String
+}
+
+type AssetModel implements IFieldParent & IModel {
+    apiId: String!
+    apiIdPlural: String!
+    contentViews(filter: ContentViewFilterInput, includeSystemContentViews: Boolean = false): [ContentView!]!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    defaultContentView: ContentView!
+    description: String
+    displayName: String!
+    environment: Environment!
+    field(id: ID!): IField!
+    fields(includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false): [IField!]!
+    fieldsConnection(first: Int! = 25, includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false, includeSystemFields: Boolean = true, skip: Int! = 0): FieldsConnection!
+    "Model has at least one document"
+    hasContent: Boolean!
+    hasLocalizedComponents: Boolean!
+    id: ID!
+    isLocalized: Boolean!
+    isSystem: Boolean!
+    isVersioned: Boolean!
+    sidebarElements: [ISidebarElement!]!
+    titleFields: [IField!]!
+    updatedAt: DateTime!
+    viewerPermission: ModelViewerPermission!
+}
+
+type AssetSystem implements IAssetConfig {
+    apiKey: String!
+}
+
+type AsyncOperationPayload {
+    migration: Migration!
+}
+
+type AuditLog {
+    action: AuditLogAction!
+    entityId: String
+    environmentName: String
+    id: String!
+    payload: JSON
+    resource: AuditLogResource!
+    timestamp: DateTime!
+    triggerType: AuditLogTriggerType!
+    triggeredBy: AuditLogTriggeredBy
+}
+
+type AuditLogsPayload {
+    logs: [AuditLog!]!
+    total: Float!
+}
+
+type AvailableExtensionPermission {
+    createdAt: DateTime!
+    description: String
+    id: ID!
+    name: AvailableExtensionPermissionAction!
+    updatedAt: DateTime!
+}
+
+type BillingPeriod {
+    from: DateTime!
+    to: DateTime!
+}
+
+type CloningProject implements IPendingProject {
+    cloningFrom: CloningFrom!
+    description: String
+    id: ID!
+    name: String!
+    picture: String
+}
+
+type CommentingConfig {
+    token: String!
+    url: String!
+    userKey: String!
+}
+
+type CommentingInfoPayload {
+    gcms: String
+}
+
+type CommonFilestack {
+    apiKey: String!
+    path: String!
+    security: CommonFilestackSecurityOptions!
+}
+
+type CommonFilestackSecurityOptions {
+    auth: FilestackSecurityAuthOptions
+    enabled: Boolean!
+}
+
+type Component implements IFieldParent & IRecentSchemaChange {
+    apiId: String!
+    apiIdPlural: String!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    environment: Environment!
+    field(id: ID!): IField!
+    fields(includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false): [IField!]!
+    fieldsConnection(first: Int! = 25, includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false, includeSystemFields: Boolean = true, skip: Int! = 0): FieldsConnection!
+    "Component has at least one instance in any of its usages"
+    hasContent: Boolean!
+    id: ID!
+    "Is true when at least one field is marked as localized"
+    isLocalized: Boolean!
+    isSystem: Boolean!
+    titleFields: [IField!]!
+    updatedAt: DateTime!
+}
+
+type ComponentField implements IField & IRequireableField {
+    apiId: String!
+    component: Component!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfig!
+    hasEmptyValues: Boolean!
+    id: ID!
+    isHidden: Boolean! @deprecated(reason: "Use visibility instead")
+    isList: Boolean!
+    isRequired: Boolean!
+    isSystem: Boolean!
+    meta: JSON
+    "This will throw a runtime error for fields that are on a component instead of model!"
+    model: IModel! @deprecated(reason: "Use parent instead")
+    parent: IFieldParent!
+    position: Int!
+    tableConfig: FieldConfig!
+    type: ComponentFieldType!
+    updatedAt: DateTime!
+    visibility: VisibilityTypes!
+}
+
+type ComponentUnionField implements IField & IRequireableField {
+    apiId: String!
+    components: [Component!]!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfig!
+    id: ID!
+    isHidden: Boolean! @deprecated(reason: "Use visibility instead")
+    isList: Boolean!
+    isRequired: Boolean!
+    isSystem: Boolean!
+    meta: JSON
+    "This will throw a runtime error for fields that are on a component instead of model!"
+    model: IModel! @deprecated(reason: "Use parent instead")
+    parent: IFieldParent!
+    position: Int!
+    tableConfig: FieldConfig!
+    type: ComponentUnionFieldType!
+    updatedAt: DateTime!
+    visibility: VisibilityTypes!
+}
+
+type ContentModel {
+    assetModel: IModel!
+    component(apiId: String, id: ID): Component!
+    components(includeSystemComponents: Boolean): [Component!]!
+    enumeration(apiId: String, id: ID): Enumeration!
+    enumerations(includeSystemEnumerations: Boolean = false): [Enumeration!]!
+    field(id: ID!): IField!
+    locales: [Locale!]!
+    model(apiId: String, id: ID): IModel!
+    models(includeSystemModels: Boolean): [IModel!]!
+    stages: [Stage!]!
+    unions: [Union]!
+}
+
+type ContentPermissionAppTokenTarget {
+    appInstallation: AppInstallation
+}
+
+type ContentPermissionPermanentAuthTokenTarget {
+    permanentAuthToken: PermanentAuthToken!
+}
+
+type ContentPermissionPublicTarget {
+    environment: Environment!
+}
+
+type ContentPermissionRoleTarget {
+    environment: Environment!
+    role: Role!
+}
+
+type ContentView {
+    allColumns: [IContentViewColumn!]!
+    columns: [ContentViewColumn!]! @deprecated(reason: "Use allColumns instead")
+    createdAt: DateTime!
+    description: String
+    filters: JSON!
+    id: ID!
+    isSystem: Boolean!
+    model: IModel!
+    name: String!
+    orderBy: OrderBy
+    position: Int
+    type: ContentViewType!
+    updatedAt: DateTime!
+    viewGroup: ViewGroup!
+}
+
+type ContentViewColumn {
+    field: IField!
+    id: ID!
+    isVisible: Boolean!
+    position: Int!
+    width: Int
+}
+
+type ContentViewFieldColumn implements IContentViewColumn {
+    field: IField!
+    id: ID!
+    isVisible: Boolean!
+    position: Int!
+    type: ContentViewColumnType!
+    width: Int
+}
+
+type ContentViewSystemColumn implements IContentViewColumn {
+    description: String
+    id: ID!
+    isVisible: Boolean!
+    name: String!
+    position: Int!
+    type: ContentViewColumnType!
+    width: Int
+}
+
+type CreateAppExchangeTokenPayload {
+    createdAppExchangeToken: String!
+}
+
+type CreateAppInstallationPayload {
+    createdAppInstallation: AppInstallation!
+}
+
+type CreateContentPermission implements IContentPermission {
+    condition: String
+    createdAt: DateTime!
+    enabled: Boolean!
+    id: ID!
+    locales: [Locale!]
+    model: IModel
+    target: ContentPermissionTarget!
+    updatedAt: DateTime!
+}
+
+type CreateContentViewPayload {
+    createdContentView: ContentView!
+}
+
+type CreateCreateContentPermissionPayload {
+    permission: CreateContentPermission!
+}
+
+type CreateDeleteContentPermissionPayload {
+    permission: DeleteContentPermission!
+}
+
+type CreateEnvironmentPayload {
+    createdEnvironment: Environment!
+}
+
+type CreateFieldExtensionPayload {
+    createdExtension: FieldExtension!
+}
+
+type CreateGatsbyCloudIntegrationPayload {
+    createdGatsbyCloudIntegration: GatsbyCloudIntegration!
+}
+
+type CreateNetlifyIntegrationPayload {
+    createdNetlifyIntegration: NetlifyIntegration!
+}
+
+type CreatePermanentAuthTokenPayload {
+    createdPermanentAuthToken: PermanentAuthToken!
+}
+
+type CreatePublishContentPermissionPayload {
+    permission: PublishContentPermission!
+}
+
+type CreateReadContentPermissionPayload {
+    permission: ReadContentPermission!
+}
+
+type CreateReadVersionContentPermissionPayload {
+    permission: ReadVersionContentPermission!
+}
+
+type CreateSidebarElementPayload {
+    createdSidebarElement: ISidebarElement
+}
+
+type CreateSidebarExtensionPayload {
+    createdExtension: SidebarExtension!
+}
+
+type CreateUnpublishContentPermissionPayload {
+    permission: UnpublishContentPermission!
+}
+
+type CreateUpdateContentPermissionPayload {
+    permission: UpdateContentPermission!
+}
+
+type CreateUserPayload {
+    gcms: String
+}
+
+type CreateViewGroupPayload {
+    createdViewGroup: ViewGroup!
+}
+
+type CreateWebhookPayload {
+    createdWebhook: Webhook!
+}
+
+type CustomSidebarElement implements ISidebarElement {
+    config: JSON
+    createdAt: DateTime!
+    description: String
+    displayName: String!
+    extension: SidebarExtension!
+    id: ID!
+    isEnabled: Boolean!
+    model: IModel!
+    position: Int!
+    updatedAt: DateTime!
+}
+
+type DeleteAppInstallationPayload {
+    deletedAppInstallationId: ID!
+}
+
+type DeleteContentPermission implements IContentPermission {
+    condition: String
+    createdAt: DateTime!
+    enabled: Boolean!
+    id: ID!
+    locales: [Locale!]
+    model: IModel
+    target: ContentPermissionTarget!
+    updatedAt: DateTime!
+}
+
+type DeleteContentPermissionPayload {
+    deletedPermissionId: ID!
+}
+
+type DeleteContentViewPayload {
+    deletedContentViewId: ID!
+}
+
+type DeleteEnvironmentPayload {
+    deletedEnvironmentId: ID!
+}
+
+type DeleteExtensionPayload {
+    deletedExtensionId: ID!
+}
+
+type DeleteGatsbyCloudIntegrationPayload {
+    deletedGatsbyCloudIntegrationId: ID!
+}
+
+type DeleteNetlifyIntegrationPayload {
+    deletedNetlifyIntegrationId: ID!
+}
+
+type DeletePermanentAuthTokenPayload {
+    deletedPermanentAuthTokenId: ID!
+}
+
+type DeleteProjectPayload {
+    deletedProjectId: ID!
+}
+
+type DeleteRolePayload {
+    deletedId: ID!
+}
+
+type DeleteSidebarElementPayload {
+    deletedSidebarElementId: ID!
+}
+
+type DeleteViewGroupPayload {
+    deletedViewGroupId: ID!
+}
+
+type DeleteWebhookPayload {
+    deletedWebhookId: ID!
+}
+
+type DiffEnvironmentPayload {
+    changes: [JSON!]!
+}
+
+type EnumerableField implements IField & ILocalizableField & IRequireableField & ITitleableField & IUniqueableField {
+    apiId: String!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    enumeration: Enumeration!
+    extensions: JSON
+    formConfig: FieldConfig!
+    id: ID!
+    initialValue: EnumerationValue
+    isHidden: Boolean! @deprecated(reason: "Use visibility instead")
+    isList: Boolean!
+    isLocalized: Boolean!
+    isRequired: Boolean!
+    isSystem: Boolean!
+    isTitle: Boolean!
+    isUnique: Boolean!
+    meta: JSON
+    "This will throw a runtime error for fields that are on a component instead of model!"
+    model: IModel! @deprecated(reason: "Use parent instead")
+    parent: IFieldParent!
+    position: Int!
+    tableConfig: FieldConfig!
+    type: EnumerableFieldType!
+    updatedAt: DateTime!
+    visibility: VisibilityTypes!
+}
+
+type Enumeration implements IRecentSchemaChange {
+    apiId: String!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    environment: Environment!
+    id: ID!
+    isSystem: Boolean!
+    updatedAt: DateTime!
+    values: [EnumerationValue!]!
+}
+
+type EnumerationValue {
+    apiId: String!
+    displayName: String!
+    id: ID!
+}
+
+type Environment {
+    appInstallation(appApiId: String!): AppInstallation!
+    appInstallations(status: AppInstallationStatus): [AppInstallation!]!
+    assetConfig: IAssetConfig!
+    authToken: String!
+    commentingConfig: CommentingConfig
+    contentModel: ContentModel!
+    contentView(id: ID!): ContentView!
+    contentViews(filter: ContentViewFilterInput, includeSystemModels: Boolean = false): [ContentView!]!
+    createdAt: DateTime!
+    deliveryUrl: String
+    description: String
+    diff(environmentName: String!): DiffEnvironmentPayload!
+    displayName: String!
+    endpoint: String!
+    extension(id: ID!): IExtension!
+    extensions: [IExtension!]!
+    id: ID!
+    integration(id: ID!): IIntegration!
+    integrations: [IIntegration!]!
+    isCloning: Boolean
+    metrics: Metrics!
+    migration(id: ID, name: String): Migration!
+    migrations: [Migration!]!
+    name: String!
+    newDeliveryUrl: String!
+    permanentAuthTokens: [PermanentAuthToken!]!
+    publicContentAPI: PublicContentAPI!
+    quotas: EnvironmentLevelQuota!
+    recentSchemaChanges(limit: Int! = 5): [IRecentSchemaChange!]!
+    remoteSource(prefix: String!): IRemoteSource!
+    remoteSources: [IRemoteSource!]!
+    revisionCount: Int! @deprecated(reason: "Revisions are no longer maintained")
+    runningMigration: Migration
+    updatedAt: DateTime!
+    viewGroups: [ViewGroup!]!
+    webhook(id: ID!): Webhook!
+    webhooks: [Webhook!]!
+}
+
+type EnvironmentBackup {
+    backupEnvironment: Environment
+    createdAt: DateTime!
+    expiresAt: DateTime
+    id: ID!
+    originEnvironment: Environment
+    restoredAt: DateTime
+    updatedAt: DateTime!
+}
+
+type EnvironmentBackupConfig {
+    backupTtlInSec: Int
+    createdAt: DateTime!
+    cronSchedule: String
+    environment: Environment!
+    id: ID!
+    updatedAt: DateTime!
+}
+
+type EnvironmentCreatedPayload {
+    environment: Environment!
+}
+
+type EnvironmentLevelQuota {
+    components: Progress!
+    contentPermissions: Progress!
+    locales: Progress!
+    models: Progress!
+    remoteSources: Progress!
+    stages: Progress!
+    webhooks: Progress!
+}
+
+type EnvironmentPermissions {
+    "True if mutations on this stage are allowed"
+    allowMutations: Boolean!
+}
+
+type EnvironmentPromotedPayload {
+    previousMasterEnvironment: Environment!
+    promotedEnvironment: Environment!
+    promotedEnvironmentPreviousDisplayName: String!
+}
+
+type ExtensionSidebarElement implements ISidebarElement {
+    config: JSON
+    createdAt: DateTime!
+    description: String
+    displayName: String!
+    extension: SidebarExtension!
+    id: ID!
+    isEnabled: Boolean!
+    model: IModel!
+    position: Int!
+    updatedAt: DateTime!
+}
+
+type ExtensionSrcType {
+    createdAt: DateTime!
+    description: String
+    id: ID!
+    name: String!
+    type: AvailableExtensionSrcType!
+    updatedAt: DateTime!
+}
+
+type Feedback {
+    "Allow contacting the user"
+    allowContact: Boolean
+    createdAt: DateTime!
+    "Name of the feature"
+    featureName: String
+    id: ID!
+    "Feedback Message"
+    message: String
+    "Rating of the feature"
+    rating: Int
+    "Reason for deleting project"
+    reasons: [String!]
+    "Type of feedback"
+    type: FeedbackType!
+}
+
+type FieldAppElement implements IAppElement {
+    apiId: String!
+    app: App!
+    config: JSON
+    createdAt: DateTime!
+    description: String
+    features: [FieldAppElementFeature!]!
+    fieldType: SimpleFieldType!
+    id: ID!
+    name: String!
+    src: String!
+    type: AppElementType!
+    updatedAt: DateTime!
+}
+
+type FieldConfig {
+    appElement: FieldAppElement
+    appInstallation: AppInstallation
+    config: JSON!
+    extension: FieldExtension
+    id: String!
+    renderer: String!
+}
+
+type FieldEdge {
+    node: IField!
+}
+
+type FieldExtension implements IExtension {
+    apiId: String!
+    config: JSON!
+    createdAt: DateTime!
+    createdBy: Member
+    description: String
+    environment: Environment!
+    fieldType: ExtensionFieldType!
+    fields: [IField!]!
+    hasFormRenderer: Boolean!
+    hasListRenderer: Boolean!
+    hasTableRenderer: Boolean!
+    id: ID!
+    isActive: Boolean!
+    meta: JSON
+    name: String
+    neededPermissions: [AvailableExtensionPermission!]!
+    "Location for the source if the source type is an external one"
+    src: String!
+    "The type indicating where the source for the extension will be obtained from"
+    srcType: ExtensionSrcType!
+    updatedAt: DateTime!
+    updatedBy: Member
+}
+
+type FieldInputArg {
+    apiId: String!
+    id: ID!
+    isList: Boolean!
+    isRequired: Boolean!
+    remoteType: RemoteTypeDefinition!
+}
+
+type FieldValidationFloatRange {
+    errorMessage: String
+    max: Float
+    min: Float
+}
+
+type FieldValidationIntRange {
+    errorMessage: String
+    max: Int
+    min: Int
+}
+
+type FieldValidationRange {
+    errorMessage: String
+    max: Int
+    min: Int
+}
+
+type FieldValidationRegEx {
+    errorMessage: String
+    flags: [String!]
+    regex: String
+}
+
+type FieldsAggregate {
+    count: Int!
+}
+
+type FieldsConnection {
+    aggregate: FieldsAggregate!
+    edges: [FieldEdge!]!
+    pageInfo: PageInfo!
+}
+
+type Filestack implements IAssetConfig {
+    apiKey: String!
+    bucket: String!
+    isManagedBucket: Boolean!
+    path: String!
+    security: FilestackSecurityOptions!
+}
+
+type FilestackSecurityAuthOptions {
+    policy: String!
+    signature: String!
+}
+
+type FilestackSecurityOptions {
+    auth: FilestackSecurityAuthOptions
+    enabled: Boolean!
+    globalExpires: String!
+    stageOverrides: [StageFilestackSecurityOptions!]!
+}
+
+type FloatFieldValidations {
+    listItemCount: FieldValidationRange
+    range: FieldValidationFloatRange
+}
+
+type FormSidebarAppElement implements IAppElement {
+    apiId: String!
+    app: App!
+    config: JSON
+    createdAt: DateTime!
+    description: String
+    id: ID!
+    name: String!
+    src: String!
+    type: AppElementType!
+    updatedAt: DateTime!
+}
+
+type GatsbyCloudIntegration implements IIntegration {
+    "URL to trigger a Deploy Build. This webhook will be triggered when publishing and unpublishing entries."
+    buildWebhookURL: String!
+    createdAt: DateTime!
+    "Integration description on GCMS"
+    description: String
+    "Integration display name on GCMS"
+    displayName: String
+    "Integration ID"
+    id: ID!
+    "URL to the preview of your site"
+    previewURL: String!
+    "URL to trigger a CMS Preview build"
+    previewWebhookURL: String!
+    "URL to the production deployment of your site"
+    productionURL: String!
+    "Prefix of your site"
+    sitePrefix: String!
+    "URL to your site"
+    siteURL: String!
+    updatedAt: DateTime!
+}
+
+type GraphQLRemoteFieldConfig implements IRemoteFieldConfig {
+    cacheTTLSeconds: Int
+    forwardClientHeaders: Boolean!
+    headers: JSON
+    method: RemoteFieldApiMethod!
+    operationName: String
+    "In case of apiType GraphQL graphqlQuery contains the GraphQL query that will be sent to the remote source"
+    query: String
+    remoteSource: GraphQLRemoteSource!
+    returnType: RemoteTypeDefinition!
+}
+
+type GraphQLRemoteSource implements IRecentSchemaChange & IRemoteSource {
+    createdAt: DateTime!
+    debugEnabled: Boolean!
+    description: String
+    displayName: String!
+    headers: JSON
+    id: ID!
+    "HTTP Headers that will be used when sending the introspection only"
+    introspectionHeaders: JSON
+    "HTTP method that will be used for introspection"
+    introspectionMethod: GraphQLRemoteSourceIntrospectionMethod!
+    """
+
+    Specific URL that will be used for introspection if the introspection is available on another url than the regular url.
+    Can be ignored if the introspection url is the same as the url of the remote source.
+    """
+    introspectionUrl: String
+    kind: RemoteSourceKind
+    oAuth: JSON
+    prefix: String!
+    remoteTypeDefinitionsConnection(first: Int! = 25, isUserDefined: Boolean, remoteGraphQLTypes: [REMOTE_GRAPHQL_TYPE!], skip: Int! = 0): RemoteTypeDefinitionsConnection!
+    schema: String!
+    type: RemoteSourceType!
+    updatedAt: DateTime!
+    url: String!
+}
+
+type IntFieldValidations {
+    listItemCount: FieldValidationRange
+    range: FieldValidationRange
+}
+
+type Invite {
+    acceptedAt: DateTime
+    code: String!
+    createdAt: DateTime!
+    email: String!
+    expirationDate: DateTime!
+    id: ID!
+    issuer: Member
+    origin: String
+    project: Project!
+    roles: [Role!]!
+}
+
+type LeaveProjectPayload {
+    leftProjectId: ID!
+}
+
+type LeaveTrialPayload {
+    project: Project!
+}
+
+type LegacyProject {
+    description: String
+    id: ID!
+    isMigrated: Boolean!
+    isOwner: Boolean!
+    name: String!
+    picture: String
+    url: String!
+}
+
+type Lifecycle {
+    progress: Float!
+    steps: [LifecycleStep!]
+}
+
+type LifecycleStep {
+    description: String
+    done: Boolean!
+    name: String!
+    type: LifecycleStepType!
+}
+
+type Limit {
+    addOnCode: String
+    amount: Float
+    createdAt: DateTime!
+    id: ID!
+    name: String!
+    plan: Plan!
+    type: LimitType!
+    updatedAt: DateTime!
+}
+
+type Locale {
+    """
+
+    Determines how the locale is
+    exposed in the Content API
+    """
+    apiId: String!
+    createdAt: DateTime!
+    description: String
+    displayName: String!
+    id: ID!
+    """
+
+    Specifies if the locale is used as the
+    default locale which impacts the Content API
+    """
+    isDefault: Boolean!
+    updatedAt: DateTime!
+}
+
+type ManagementPermission {
+    action: PermissionAction!
+    createdAt: DateTime!
+    description: String
+    id: ID!
+    updatedAt: DateTime!
+}
+
+type MaxComplexityPayload {
+    gcms: String
+}
+
+type Member implements IUser {
+    createdAt: DateTime!
+    hasPermissions(actions: [PermissionAction!]!): MemberHasPermissionsPayload!
+    id: ID!
+    isOwner: Boolean!
+    preferences: JSON
+    profile: Profile!
+    roles: [Role!]!
+    updatedAt: DateTime!
+    userSelection: UserSelection!
+}
+
+type MemberEdge {
+    node: Member!
+}
+
+type MemberHasPermissionsPayload {
+    notAllowedActions: [PermissionAction!]!
+}
+
+type MembersAggregate {
+    count: Int!
+}
+
+type MembersConnection {
+    aggregate: MembersAggregate!
+    edges: [MemberEdge!]!
+    pageInfo: PageInfo!
+}
+
+type MetaInfo {
+    serverVersion: String!
+}
+
+type Metrics {
+    apiOperations(end: DateTime!, resolution: Int!, start: DateTime!): [Stats!]!
+    assetTraffic(end: DateTime!, start: DateTime!): [Stats!]!
+    assetTransformations(end: DateTime!, start: DateTime!): [Stats!]!
+}
+
+type Migration {
+    createdAt: DateTime!
+    errors: String
+    finishedAt: DateTime
+    id: ID!
+    "Name of the migration in case if was triggered via a named batch migration"
+    name: String
+    operationType: MigrationOperationType! @deprecated(reason: "No longer supported")
+    resourceId: ID @deprecated(reason: "No longer supported")
+    status: MigrationStatus!
+    triggeredBy: Member @deprecated(reason: "This will be replaced by a union of Member | PermanentAuthToken")
+}
+
+type Model implements IFieldParent & IModel & IRecentSchemaChange {
+    apiId: String!
+    apiIdPlural: String!
+    contentViews(filter: ContentViewFilterInput, includeSystemContentViews: Boolean = false): [ContentView!]!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    defaultContentView: ContentView!
+    description: String
+    displayName: String!
+    environment: Environment!
+    field(id: ID!): IField!
+    fields(includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false): [IField!]!
+    fieldsConnection(first: Int! = 25, includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false, includeSystemFields: Boolean = true, skip: Int! = 0): FieldsConnection!
+    "Model has at least one document"
+    hasContent: Boolean!
+    hasLocalizedComponents: Boolean!
+    id: ID!
+    "Is true when at least one field is marked as localized"
+    isLocalized: Boolean!
+    isSystem: Boolean!
+    isVersioned: Boolean!
+    sidebarElements: [ISidebarElement!]!
+    titleFields: [IField!]!
+    updatedAt: DateTime!
+    viewerPermission: ModelViewerPermission!
+}
+
+type ModelViewerContentPermission {
+    "Lists all stages and the corresponding read permissions the user has on those stages."
+    readByStages: [ModelViewerReadContentPermissionByStage!]!
+    readVersion: Boolean!
+}
+
+"Simplified computed version of the permissions the current viewer has on this model"
+type ModelViewerPermission {
+    content: ModelViewerContentPermission!
+}
+
+"""
+
+This types holds a superset of the allowed read operations on a model.
+This means even if this states access is allowed, it could still potentially be denied.
+"""
+type ModelViewerReadContentPermission {
+    allowedLocales: [Locale!]!
+    allowedWithCondition: Boolean!
+}
+
+type ModelViewerReadContentPermissionByStage {
+    """
+
+    If the current viewer is allowed to read this models content for the provided stage,
+    this field will return the potential limitations that must be met.
+    `null` means not allowed!
+    """
+    allowed: ModelViewerReadContentPermission
+    stage: Stage!
+}
+
+type MoveContentViewPayload {
+    movedContentView: ContentView!
+    updatedViewGroups: [ViewGroup!]!
+}
+
+type MoveFieldPayload {
+    movedFields: [IField!]!
+}
+
+type MoveSidebarElementPayload {
+    movedSidebarElements: [ISidebarElement!]!
+}
+
+type MoveViewGroupPayload {
+    movedViewGroups: [ViewGroup!]!
+}
+
+type Mutation {
+    cloneProject(data: CloneProjectInput!): Project!
+    createAppExchangeToken(data: CreateAppExchangeTokenInput!): CreateAppExchangeTokenPayload!
+    createAppInstallation(data: CreateAppInstallationInput!): CreateAppInstallationPayload!
+    createComponent(data: CreateComponentInput!): AsyncOperationPayload!
+    createComponentField(data: CreateComponentFieldInput!): AsyncOperationPayload!
+    createComponentUnionField(data: CreateComponentUnionFieldInput!): AsyncOperationPayload!
+    createContentView(data: CreateContentViewInput!): CreateContentViewPayload!
+    createCreateContentPermission(data: CreateCreateContentPermissionInput!): CreateCreateContentPermissionPayload!
+    createCustomSidebarElement(data: CreateCustomSidebarElementInput!): CreateSidebarElementPayload!
+    createDeleteContentPermission(data: CreateDeleteContentPermissionInput!): CreateDeleteContentPermissionPayload!
+    createEnumerableField(data: CreateEnumerableFieldInput!): AsyncOperationPayload!
+    createEnumeration(data: CreateEnumerationInput!): AsyncOperationPayload!
+    createEnvironment(data: CreateEnvironmentInput!): CreateEnvironmentPayload!
+    createFieldExtension(data: CreateFieldExtensionInput!): CreateFieldExtensionPayload!
+    createGatsbyCloudIntegration(data: CreateGatsbyCloudIntegrationInput!): CreateGatsbyCloudIntegrationPayload
+    createGraphQLRemoteSource(data: CreateGraphQLRemoteSourceInput!): AsyncOperationPayload!
+    createLocale(data: CreateLocaleInput!): AsyncOperationPayload!
+    createModel(data: CreateModelInput!): AsyncOperationPayload!
+    createNetlifyIntegration(data: CreateNetlifyIntegrationInput!): CreateNetlifyIntegrationPayload
+    createPermanentAuthToken(data: CreatePermanentAuthTokenInput!): CreatePermanentAuthTokenPayload!
+    createPublishContentPermission(data: CreatePublishContentPermissionInput!): CreatePublishContentPermissionPayload!
+    createRESTRemoteSource(data: CreateRESTRemoteSourceInput!): AsyncOperationPayload!
+    createReadContentPermission(data: CreateReadContentPermissionInput!): CreateReadContentPermissionPayload!
+    createReadVersionContentPermission(data: CreateReadVersionContentPermissionInput!): CreateReadVersionContentPermissionPayload!
+    createRelationalField(data: CreateRelationalFieldInput!): AsyncOperationPayload!
+    createRemoteField(data: CreateRemoteFieldInput!): AsyncOperationPayload!
+    createRole(data: CreateRoleInput!): Role!
+    createSidebarExtension(data: CreateSidebarExtensionInput!): CreateSidebarExtensionPayload!
+    createSimpleField(data: CreateSimpleFieldInput!): AsyncOperationPayload!
+    createStage(data: CreateStageInput!): AsyncOperationPayload!
+    createSystemSidebarElement(data: CreateSystemSidebarElementInput!): CreateSidebarElementPayload!
+    createUnionField(data: CreateUnionFieldInput!): AsyncOperationPayload!
+    createUnpublishContentPermission(data: CreateUnpublishContentPermissionInput!): CreateUnpublishContentPermissionPayload!
+    createUpdateContentPermission(data: CreateUpdateContentPermissionInput!): CreateUpdateContentPermissionPayload!
+    createViewGroup(data: CreateViewGroupInput!): CreateViewGroupPayload!
+    createWebhook(data: CreateWebhookInput!): CreateWebhookPayload!
+    deleteAppInstallation(data: DeleteAppInstallationInput!): DeleteAppInstallationPayload!
+    deleteComponent(data: DeleteComponentInput!): AsyncOperationPayload!
+    deleteContentPermission(data: DeleteContentPermissionInput!): DeleteContentPermissionPayload!
+    deleteContentView(data: DeleteContentViewInput!): DeleteContentViewPayload!
+    deleteEnumeration(data: DeleteEnumerationInput!): AsyncOperationPayload!
+    deleteEnvironment(data: DeleteEnvironmentInput!): DeleteEnvironmentPayload!
+    deleteExtension(data: DeleteExtensionInput!): DeleteExtensionPayload!
+    deleteField(data: DeleteFieldInput!): AsyncOperationPayload!
+    deleteGatsbyCloudIntegration(data: DeleteGatsbyCloudIntegrationInput!): DeleteGatsbyCloudIntegrationPayload
+    deleteLocale(data: DeleteLocaleInput!): AsyncOperationPayload!
+    deleteModel(data: DeleteModelInput!): AsyncOperationPayload!
+    deleteNetlifyIntegration(data: DeleteNetlifyIntegrationInput!): DeleteNetlifyIntegrationPayload
+    deletePermanentAuthToken(data: DeletePermanentAuthTokenInput!): DeletePermanentAuthTokenPayload!
+    deleteProject(data: DeleteProjectInput!): DeleteProjectPayload!
+    deleteRemoteSource(data: DeleteRemoteSourceInput!): AsyncOperationPayload!
+    deleteRole(data: DeleteRoleInput!): DeleteRolePayload!
+    deleteSidebarElement(data: DeleteSidebarElementInput!): DeleteSidebarElementPayload!
+    deleteStage(data: DeleteStageInput!): AsyncOperationPayload!
+    deleteViewGroup(data: DeleteViewGroupInput!): DeleteViewGroupPayload!
+    deleteWebhook(data: DeleteWebhookInput!): DeleteWebhookPayload!
+    duplicateComponent(data: DuplicateComponentInput!): AsyncOperationPayload!
+    duplicateModel(data: DuplicateModelInput!): AsyncOperationPayload!
+    leaveProject(data: LeaveProjectInput!): LeaveProjectPayload!
+    leaveTrial(data: LeaveTrialInput!): LeaveTrialPayload!
+    moveContentView(data: MoveContentViewInput!): MoveContentViewPayload!
+    moveField(data: MoveFieldInput!): MoveFieldPayload!
+    moveSidebarElement(data: MoveSidebarElementInput!): MoveSidebarElementPayload!
+    moveViewGroup(data: MoveViewGroupInput!): MoveViewGroupPayload!
+    promoteEnvironment(data: PromoteEnvironmentInput!): PromoteEnvironmentPayload!
+    refreshGraphQLRemoteSourceSchema(id: ID!): AsyncOperationPayload!
+    removeMember(data: RemoveMemberInput!): RemoveMemberPayload!
+    resetSidebarElements(data: ResetSidebarElementsInput!): ResetSidebarElementsPayload!
+    restoreEnvironmentBackup(data: RestoreEnvironmentBackupInput!): RestoreEnvironmentBackupPayload!
+    retriggerWebhook(data: RetriggerWebhookInput!): RetriggerWebhookPayload!
+    revokeInvite(data: RevokeInviteInput!): RevokeInvitePayload!
+    sendFeedback(data: SendFeedbackInput!): Feedback!
+    sendInvite(data: SendInviteInput!): SendInvitePayload!
+    setUserAnalytics(data: SetUserAnalyticsInput!): UserAnalytics!
+    setUserPreferences(data: SetUserPreferencesInput!): UserPreferences!
+    setUserSelection(data: SetUserSelectionInput!): UserSelection!
+    startTrial(data: StartTrialInput!): StartTrialPayload!
+    submitBatchChanges(data: BatchMigrationInput!): AsyncOperationPayload!
+    switchPaymentSubscription(data: SwitchPaymentSubscriptionInput!): SwitchPaymentSubscriptionPayload!
+    track(data: TrackInput!): TrackPayload!
+    triggerNetlifyIntegrationBuild(data: TriggerNetlifyIntegrationBuildInput!): TriggerNetlifyIntegrationBuildPayload
+    updateAppInstallation(data: UpdateAppInstallationInput!): UpdateAppInstallationPayload!
+    updateComponent(data: UpdateComponentInput!): AsyncOperationPayload!
+    updateComponentField(data: UpdateComponentFieldInput!): AsyncOperationPayload!
+    updateComponentUnionField(data: UpdateComponentUnionFieldInput!): AsyncOperationPayload!
+    updateContentPermissionEnabled(data: UpdateContentPermissionEnabledInput!): UpdateContentPermissionEnabledPayload!
+    updateContentView(data: UpdateContentViewInput!): UpdateContentViewPayload!
+    updateCreateContentPermission(data: UpdateCreateContentPermissionInput!): UpdateCreateContentPermissionPayload!
+    updateDeleteContentPermission(data: UpdateDeleteContentPermissionInput!): UpdateDeleteContentPermissionPayload!
+    updateEnumerableField(data: UpdateEnumerableFieldInput!): AsyncOperationPayload!
+    updateEnumeration(data: UpdateEnumerationInput!): AsyncOperationPayload!
+    updateEnvironment(data: UpdateEnvironmentInput!): UpdateEnvironmentPayload!
+    updateFieldExtension(data: UpdateFieldExtensionInput!): UpdateFieldExtensionPayload!
+    updateFilestackSecurityOptions(data: UpdateFilestackSecurityOptionsInput!): UpdateFilestackSecurityOptionsPayload!
+    updateGatsbyCloudIntegration(data: UpdateGatsbyCloudIntegrationInput!): UpdateGatsbyCloudIntegrationPayload
+    updateGraphQLRemoteSource(data: UpdateGraphQLRemoteSourceInput!): AsyncOperationPayload!
+    updateLocale(data: UpdateLocaleInput!): AsyncOperationPayload!
+    updateMemberRoles(data: UpdateMemberRolesInput!): Member!
+    updateModel(data: UpdateModelInput!): AsyncOperationPayload!
+    updateNetlifyIntegration(data: UpdateNetlifyIntegrationInput!): UpdateNetlifyIntegrationPayload
+    updatePermanentAuthToken(data: UpdatePermanentAuthTokenInput!): UpdatePermanentAuthTokenPayload!
+    updateProject(data: UpdateProjectInput!): Project!
+    updatePublicEndpoint(data: UpdatePublicEndpointInput!): UpdatePublicPermissionsPayload
+    updatePublishContentPermission(data: UpdatePublishContentPermissionInput!): UpdatePublishContentPermissionPayload!
+    updateRESTRemoteSource(data: UpdateRESTRemoteSourceInput!): AsyncOperationPayload!
+    updateReadContentPermission(data: UpdateReadContentPermissionInput!): UpdateReadContentPermissionPayload!
+    updateReadVersionContentPermission(data: UpdateReadVersionContentPermissionInput!): UpdateReadVersionContentPermissionPayload!
+    updateRelationalField(data: UpdateRelationalFieldInput!): AsyncOperationPayload!
+    updateRemoteField(data: UpdateRemoteFieldInput!): AsyncOperationPayload!
+    updateRole(data: UpdateRoleInput!): Role!
+    updateSidebarElement(data: UpdateSidebarElementInput!): UpdateSidebarElementPayload!
+    updateSidebarExtension(data: UpdateSidebarExtensionInput!): UpdateSidebarExtensionPayload!
+    updateSimpleField(data: UpdateSimpleFieldInput!): AsyncOperationPayload!
+    updateStage(data: UpdateStageInput!): AsyncOperationPayload!
+    updateUnionField(data: UpdateUnionFieldInput!): AsyncOperationPayload!
+    updateUnpublishContentPermission(data: UpdateUnpublishContentPermissionInput!): UpdateUnpublishContentPermissionPayload!
+    updateUpdateContentPermission(data: UpdateUpdateContentPermissionInput!): UpdateUpdateContentPermissionPayload!
+    updateViewGroup(data: UpdateViewGroupInput!): UpdateViewGroupPayload!
+    updateWebhook(data: UpdateWebhookInput!): UpdateWebhookPayload!
+    upgradeEnvironmentAssets(data: UpgradeEnvironmentAssetInput!): UpgradeEnvironmentAssetPayload!
+}
+
+type NetlifyIntegration implements IIntegration {
+    createdAt: DateTime!
+    "Integration description on GCMS"
+    description: String
+    "Integration display name on GCMS"
+    displayName: String
+    "Integration ID"
+    id: ID!
+    models: [IModel!]!
+    "Configured sites for netlify integration"
+    sites: [NetlifySite!]!
+    updatedAt: DateTime!
+}
+
+type NetlifyIntegrationCallbackPayload {
+    error: String
+    integration: NetlifyIntegration!
+    integrationId: ID! @deprecated(reason: "use integration instead")
+    site: NetlifySite!
+}
+
+type NetlifySite {
+    displayName: String!
+    id: String!
+    "Contains information of the last time the build state was changing."
+    lastState: NetlifyState
+    url: String!
+}
+
+type NetlifyState {
+    "Time when the build of the site was finished"
+    buildFinishedAt: DateTime
+    "Time when the build of the site was prepared"
+    buildPreparedAt: DateTime
+    "Time when the build of the site was started"
+    buildStartedAt: DateTime
+    "Current state the site is in"
+    buildState: NetlifyBuildState!
+    "Member in the project who triggered a build. If the build was triggered externally this will be null."
+    triggeredBy: NetlifyStateTriggeredBy
+}
+
+type OrderBy {
+    orderByField: IField!
+    orderDir: ColumnOrderByDir!
+}
+
+type PageAppElement implements IAppElement {
+    apiId: String!
+    app: App!
+    config: JSON
+    createdAt: DateTime!
+    description: String
+    id: ID!
+    name: String!
+    src: String!
+    type: AppElementType!
+    updatedAt: DateTime!
+}
+
+type PageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    pageSize: Int!
+}
+
+type PaymentAccount {
+    accountManagementUrl: String
+    accountName: String
+    createdAt: DateTime!
+    description: String
+    hostedBillingUrl: String
+    hostedPageUrl(planName: String!, projectId: ID!): String
+    id: ID!
+    isClosed: Boolean!
+    isMain: Boolean!
+    paymentSubscriptions: [PaymentSubscription!]!
+    updatedAt: DateTime!
+    user: IUser!
+}
+
+type PaymentSubscription {
+    billingPeriod: BillingPeriod!
+    createdAt: DateTime!
+    id: ID!
+    identifier: String
+    isCanceled: Boolean!
+    paymentAccount: PaymentAccount!
+    plan: Plan!
+    projects: [Project!]!
+    renewsAt: DateTime
+    updatedAt: DateTime!
+}
+
+type PermanentAuthToken {
+    contentPermissions: [IContentPermission!]!
+    createdAt: DateTime!
+    defaults: PermanentAuthTokenDefaults!
+    description: String
+    id: ID!
+    managementPermissions: [ManagementPermission!]!
+    name: String!
+    token: String!
+    updatedAt: DateTime!
+}
+
+type PermanentAuthTokenDefaults {
+    stage: Stage!
+}
+
+type Plan {
+    billingPeriodMonths: Int!
+    createdAt: DateTime!
+    displayName: String!
+    id: ID!
+    isEnterprise: Boolean!
+    isFree: Boolean!
+    isSwitchable(projectId: ID!): Boolean
+    limits: [Limit!]!
+    name: String!
+    price: Float!
+    updatedAt: DateTime!
+}
+
+type Profile {
+    companyName: String
+    companySize: String
+    email: String!
+    id: ID!
+    name: String!
+    picture: String
+    purpose: String
+    role: String
+}
+
+type Progress {
+    current: Float!
+    estimate: Float
+    max: Float
+    percent: Float
+}
+
+type Project {
+    auditLogs(limit: Int, orderBy: AuditLogOrderByInput = timestamp_ASC, skip: Int, where: AuditLogWhereInput): AuditLogsPayload!
+    availableManagementPermissions: [ManagementPermission!]!
+    cloningProjects: [CloningProject!]!
+    createdAt: DateTime!
+    defaultPaginationSize: Int
+    description: String
+    environment(id: ID, name: String): Environment!
+    environmentBackupConfig(id: ID, name: String): EnvironmentBackupConfig
+    environments: [Environment!]!
+    environmentsBackups: [EnvironmentBackup!]!
+    existingRole(id: ID!): Role!
+    existingRoles: [Role!]!
+    id: ID!
+    inTrial: Boolean
+    invites: [Invite!]!
+    isCloning: Boolean
+    lifecycle: Lifecycle!
+    maxPaginationSize: Int
+    members: [Member!]!
+    membersConnection(first: Int! = 25, skip: Int! = 0): MembersConnection!
+    meta: JSON!
+    name: String!
+    opensInClassic: Boolean
+    owner: Member!
+    picture: String
+    "if this is `null` it means the project is not publicly clone-able"
+    publicCloneAccess: PublicCloneAccess
+    quotas: Quota!
+    region: Region!
+    subscription: PaymentSubscription!
+    trialExpiresIn: DateTime
+    updatedAt: DateTime!
+    viewerAsMember: Member
+}
+
+type ProjectChangeCompletedCloning {
+    clonedProject: Project!
+}
+
+type ProjectCreatedPayload {
+    id: ID!
+}
+
+type PromoteEnvironmentPayload {
+    previousMasterEnvironment: Environment!
+    promotedEnvironment: Environment!
+}
+
+type PublicCloneAccess {
+    enabled: Boolean!
+    id: ID!
+    includeContent: Boolean!
+    includeWebhooks: Boolean!
+}
+
+type PublicContentAPI {
+    contentPermissions: [IContentPermission!]!
+    defaults: PublicContentAPIDefauts!
+}
+
+type PublicContentAPIDefauts {
+    stage: Stage!
+}
+
+type PublishContentPermission implements IContentPermission {
+    condition: String
+    createdAt: DateTime!
+    enabled: Boolean!
+    fromStages: [Stage!]
+    id: ID!
+    locales: [Locale!]
+    model: IModel
+    target: ContentPermissionTarget!
+    toStages: [Stage!]
+    updatedAt: DateTime!
+}
+
+type Query {
+    _viewer: IViewer! @deprecated(reason: "Use viewer instead")
+    metaInfo: MetaInfo!
+    viewer: IViewer!
+}
+
+type QueryModel implements IFieldParent & IModel {
+    apiId: String!
+    apiIdPlural: String!
+    contentViews(filter: ContentViewFilterInput, includeSystemContentViews: Boolean = false): [ContentView!]!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    environment: Environment!
+    field(id: ID!): IField!
+    fields(includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false): [IField!]!
+    fieldsConnection(first: Int! = 25, includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false, includeSystemFields: Boolean = true, skip: Int! = 0): FieldsConnection!
+    "Model has at least one document"
+    hasContent: Boolean!
+    hasLocalizedComponents: Boolean!
+    id: ID!
+    isLocalized: Boolean!
+    isSystem: Boolean!
+    isVersioned: Boolean!
+    sidebarElements: [ISidebarElement!]!
+    titleFields: [IField!]!
+    updatedAt: DateTime!
+    viewerPermission: ModelViewerPermission!
+}
+
+type Quota {
+    apiOperations: Progress!
+    assetTraffic: Progress!
+    environments: Progress!
+    records: Progress!
+    roles: Progress!
+    seats: Progress!
+}
+
+type RESTRemoteSource implements IRecentSchemaChange & IRemoteSource {
+    createdAt: DateTime!
+    debugEnabled: Boolean!
+    description: String
+    displayName: String!
+    headers: JSON
+    id: ID!
+    kind: RemoteSourceKind
+    oAuth: JSON
+    prefix: String!
+    remoteTypeDefinitionsConnection(first: Int! = 25, isUserDefined: Boolean, remoteGraphQLTypes: [REMOTE_GRAPHQL_TYPE!], skip: Int! = 0): RemoteTypeDefinitionsConnection!
+    type: RemoteSourceType!
+    updatedAt: DateTime!
+    url: String!
+}
+
+type ReadContentPermission implements IContentPermission {
+    condition: String
+    createdAt: DateTime!
+    enabled: Boolean!
+    id: ID!
+    locales: [Locale!]
+    model: IModel
+    stages: [Stage!]
+    target: ContentPermissionTarget!
+    updatedAt: DateTime!
+}
+
+type ReadVersionContentPermission implements IContentPermission {
+    createdAt: DateTime!
+    enabled: Boolean!
+    id: ID!
+    model: IModel
+    target: ContentPermissionTarget!
+    updatedAt: DateTime!
+}
+
+type Region {
+    id: String!
+    isBeta: Boolean!
+    isReadOnly: Boolean!
+    name: String!
+    pingUrl: String
+}
+
+type RelationalField implements IField & IRequireableField {
+    apiId: String!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfig!
+    id: ID!
+    isHidden: Boolean! @deprecated(reason: "Use visibility instead")
+    isList: Boolean!
+    isRequired: Boolean!
+    isSystem: Boolean!
+    meta: JSON
+    "This will throw a runtime error for fields that are on a component instead of model!"
+    model: IModel! @deprecated(reason: "Use parent instead")
+    parent: IFieldParent!
+    position: Int!
+    relatedField: RelationalField!
+    relatedModel: IModel!
+    tableConfig: FieldConfig!
+    type: RelationalFieldType!
+    updatedAt: DateTime!
+    visibility: VisibilityTypes!
+}
+
+type RemoteField implements IField {
+    apiId: String!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfig!
+    id: ID!
+    inputArgs: [FieldInputArg!]
+    isHidden: Boolean! @deprecated(reason: "Use visibility instead")
+    isList: Boolean!
+    isRequired: Boolean!
+    isSystem: Boolean!
+    meta: JSON
+    "This will throw a runtime error for fields that are on a component instead of model!"
+    model: IModel! @deprecated(reason: "Use parent instead")
+    parent: IFieldParent!
+    position: Int!
+    remoteConfig: IRemoteFieldConfig!
+    tableConfig: FieldConfig!
+    type: RemoteFieldType!
+    updatedAt: DateTime!
+    visibility: VisibilityTypes!
+}
+
+type RemoteTypeDefinition {
+    apiId: String!
+    createdAt: DateTime!
+    graphqlType: REMOTE_GRAPHQL_TYPE!
+    id: ID!
+    isSystem: Boolean!
+    sdl: String!
+    updatedAt: DateTime!
+}
+
+type RemoteTypeDefinitionEdge {
+    node: RemoteTypeDefinition!
+}
+
+type RemoteTypeDefinitionsAggregate {
+    count: Int!
+}
+
+type RemoteTypeDefinitionsConnection {
+    aggregate: RemoteTypeDefinitionsAggregate!
+    edges: [RemoteTypeDefinitionEdge!]!
+    pageInfo: PageInfo!
+}
+
+type RemoveMemberPayload {
+    removedMemberId: ID!
+}
+
+type ResetSidebarElementsPayload {
+    model: IModel
+}
+
+type RestRemoteFieldConfig implements IRemoteFieldConfig {
+    cacheTTLSeconds: Int
+    forwardClientHeaders: Boolean!
+    headers: JSON
+    method: RemoteFieldApiMethod!
+    path: String
+    remoteSource: RESTRemoteSource!
+    returnType: RemoteTypeDefinition!
+}
+
+type RestoreEnvironmentBackupPayload {
+    environmentBackup: EnvironmentBackup!
+}
+
+type RetriggerWebhookPayload {
+    logId: String!
+}
+
+type RevokeInvitePayload {
+    revokedInviteId: ID!
+}
+
+type Role {
+    """
+
+    Returns contentPermissions for a role.
+    Optionally filtered by environment.
+    """
+    contentPermissions(environmentId: ID): [IContentPermission!]!
+    createdAt: DateTime!
+    description: String
+    id: ID!
+    isDefault: Boolean!
+    managementPermissions: [ManagementPermission!]!
+    members: [Member!]!
+    membersConnection(first: Int! = 25, skip: Int! = 0): MembersConnection!
+    name: String!
+    updatedAt: DateTime!
+}
+
+type SchedulingModel implements IFieldParent & IModel {
+    apiId: String!
+    apiIdPlural: String!
+    contentViews(filter: ContentViewFilterInput, includeSystemContentViews: Boolean = false): [ContentView!]!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    environment: Environment!
+    field(id: ID!): IField!
+    fields(includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false): [IField!]!
+    fieldsConnection(first: Int! = 25, includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false, includeSystemFields: Boolean = true, skip: Int! = 0): FieldsConnection!
+    "Model has at least one document"
+    hasContent: Boolean!
+    hasLocalizedComponents: Boolean!
+    id: ID!
+    isLocalized: Boolean!
+    isSystem: Boolean!
+    isVersioned: Boolean!
+    sidebarElements: [ISidebarElement!]!
+    titleFields: [IField!]!
+    updatedAt: DateTime!
+    viewerPermission: ModelViewerPermission!
+}
+
+type SchemaMigrationFailedSubscriptionPayload implements ISchemaMigrationPayload {
+    environment: Environment
+    migration: Migration!
+    project: Project
+}
+
+type SchemaMigrationSubscriptionPayload implements ISchemaMigrationPayload {
+    migration: Migration!
+}
+
+type SchemaMigrationSucceededSubscriptionPayload implements ISchemaMigrationPayload {
+    affectedResourceId: ID! @deprecated(reason: "No longer supported")
+    affectedResourceType: MigrationOperationType! @deprecated(reason: "No longer supported")
+    environment: Environment!
+    migration: Migration!
+    project: Project!
+}
+
+type SendInvitePayload {
+    invite: Invite!
+}
+
+type SidebarExtension implements IExtension {
+    apiId: String!
+    config: JSON!
+    createdAt: DateTime!
+    createdBy: Member
+    description: String
+    environment: Environment!
+    id: ID!
+    isActive: Boolean!
+    meta: JSON
+    name: String
+    neededPermissions: [AvailableExtensionPermission!]!
+    sidebarElements: [ISidebarElement!]!
+    "Location for the source if the source type is an external one"
+    src: String!
+    "The type indicating where the source for the extension will be obtained from"
+    srcType: ExtensionSrcType!
+    updatedAt: DateTime!
+    updatedBy: Member
+}
+
+type SimpleField implements IField & ILocalizableField & IRequireableField & ITitleableField & IUniqueableField {
+    apiId: String!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    embeddableModels: [IModel!]
+    embedsEnabled: Boolean
+    extensions: JSON
+    formConfig: FieldConfig!
+    id: ID!
+    initialValue: String
+    isHidden: Boolean! @deprecated(reason: "Use visibility instead")
+    isList: Boolean!
+    isLocalized: Boolean!
+    isRequired: Boolean!
+    isSystem: Boolean!
+    isTitle: Boolean!
+    isUnique: Boolean!
+    meta: JSON
+    "This will throw a runtime error for fields that are on a component instead of model!"
+    model: IModel! @deprecated(reason: "Use parent instead")
+    parent: IFieldParent!
+    position: Int!
+    tableConfig: FieldConfig!
+    type: SimpleFieldType!
+    updatedAt: DateTime!
+    validations: SimpleFieldValidations
+    visibility: VisibilityTypes!
+}
+
+type Stage {
+    apiId: String!
+    backgroundColor: String!
+    color: String!
+    colorPaletteId: ColorPalette!
+    createdAt: DateTime!
+    description: String
+    displayName: String!
+    id: ID!
+    isSystem: Boolean!
+    position: Int!
+    updatedAt: DateTime!
+}
+
+type StageFilestackSecurityOptions {
+    expires: String!
+    stage: Stage!
+}
+
+type StartTrialPayload {
+    project: Project!
+}
+
+type StarterTemplate implements ITemplate {
+    coverPicture: String
+    description: String
+    details: String
+    id: ID!
+    name: String!
+    picture: String
+    resources: [TemplateResource!]!
+    stack: [TechnologyStack!]!
+}
+
+type Stats {
+    time: DateTime!
+    value: Float!
+}
+
+type StringFieldValidations {
+    characters: FieldValidationRange
+    listItemCount: FieldValidationRange
+    matches: FieldValidationRegEx
+    notMatches: FieldValidationRegEx
+}
+
+type Subscription {
+    environmentCreated(projectId: ID!): EnvironmentCreatedPayload!
+    environmentPromoted(projectId: ID!): EnvironmentPromotedPayload!
+    netlifyBuildNotification(integrationId: ID!): NetlifyIntegrationCallbackPayload!
+    projectChanged: ProjectChangedPayload!
+    projectCreated: ProjectCreatedPayload!
+    schemaMigration(environmentId: ID!): ISchemaMigrationPayload!
+}
+
+type SwitchPaymentSubscriptionPayload {
+    project: Project!
+    subscription: PaymentSubscription!
+}
+
+type SystemSidebarElement implements ISidebarElement {
+    config: JSON
+    createdAt: DateTime!
+    description: String
+    displayName: String!
+    id: ID!
+    isEnabled: Boolean!
+    model: IModel!
+    position: Int!
+    type: SystemSidebarElementType!
+    updatedAt: DateTime!
+}
+
+type TechnologyStack {
+    image: String!
+    title: String!
+    url: String
+}
+
+type Template implements ITemplate {
+    coverPicture: String
+    description: String
+    details: String
+    id: ID!
+    name: String!
+    picture: String
+    resources: [TemplateResource!]!
+}
+
+type TemplateResource {
+    title: String!
+    url: String!
+}
+
+type TokenViewer implements IViewer {
+    availableExtensionPermissions: [AvailableExtensionPermission!]!
+    availableExtensionSrcTypes: [ExtensionSrcType!]!
+    availableIntegrations: [INTEGRATION_PROVIDER!]!
+    id: ID!
+    plans: [Plan!]!
+    project(id: ID): Project
+    regions: [Region!]!
+    templates: [ITemplate!]!
+}
+
+type TrackPayload {
+    success: Boolean!
+}
+
+type TriggerNetlifyIntegrationBuildPayload {
+    integration: NetlifyIntegration!
+}
+
+type UniDirectionalRelationalField implements IField & IRequireableField {
+    apiId: String!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfig!
+    id: ID!
+    isHidden: Boolean! @deprecated(reason: "Use visibility instead")
+    isList: Boolean!
+    isRequired: Boolean!
+    isSystem: Boolean!
+    meta: JSON
+    "This will throw a runtime error for fields that are on a component instead of model!"
+    model: IModel! @deprecated(reason: "Use parent instead")
+    parent: IFieldParent!
+    position: Int!
+    relatedModel: IModel!
+    tableConfig: FieldConfig!
+    type: RelationalFieldType!
+    updatedAt: DateTime!
+    visibility: VisibilityTypes!
+}
+
+type Union {
+    apiId: String!
+    description: String
+    displayName: String!
+    field: UnionField!
+    id: ID!
+    memberTypes: [UnionField!]!
+}
+
+type UnionField implements IField & IUnionField {
+    apiId: String!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfig!
+    id: ID!
+    isHidden: Boolean! @deprecated(reason: "Use visibility instead")
+    isList: Boolean!
+    "True if this field is the reverse side of the initally created union field"
+    isMemberType: Boolean!
+    isSystem: Boolean!
+    meta: JSON
+    "This will throw a runtime error for fields that are on a component instead of model!"
+    model: IModel! @deprecated(reason: "Use parent instead")
+    parent: IFieldParent!
+    position: Int!
+    tableConfig: FieldConfig!
+    type: UnionFieldType!
+    union: Union!
+    updatedAt: DateTime!
+    visibility: VisibilityTypes!
+}
+
+type UnpublishContentPermission implements IContentPermission {
+    condition: String
+    createdAt: DateTime!
+    enabled: Boolean!
+    id: ID!
+    locales: [Locale!]
+    model: IModel
+    stages: [Stage!]
+    target: ContentPermissionTarget!
+    updatedAt: DateTime!
+}
+
+type UpdateAppInstallationPayload {
+    updatedAppInstallation: AppInstallation!
+}
+
+type UpdateContentPermission implements IContentPermission {
+    condition: String
+    createdAt: DateTime!
+    enabled: Boolean!
+    id: ID!
+    locales: [Locale!]
+    model: IModel
+    target: ContentPermissionTarget!
+    updatedAt: DateTime!
+}
+
+type UpdateContentPermissionEnabledPayload {
+    permission: IContentPermission!
+}
+
+type UpdateContentViewPayload {
+    updatedContentView: ContentView!
+}
+
+type UpdateCreateContentPermissionPayload {
+    permission: CreateContentPermission!
+}
+
+type UpdateDeleteContentPermissionPayload {
+    permission: DeleteContentPermission!
+}
+
+type UpdateEnvironmentPayload {
+    updatedEnvironment: Environment!
+}
+
+type UpdateFieldExtensionPayload {
+    updatedExtension: FieldExtension!
+}
+
+type UpdateFilestackSecurityOptionsPayload {
+    updatedEnvironment: Environment!
+    updatedFilestack: Filestack!
+}
+
+type UpdateGatsbyCloudIntegrationPayload {
+    updatedGatsbyCloudIntegration: GatsbyCloudIntegration!
+}
+
+type UpdateNetlifyIntegrationPayload {
+    updatedNetlifyIntegration: NetlifyIntegration!
+}
+
+type UpdatePermanentAuthTokenPayload {
+    updatedPermanentAuthToken: PermanentAuthToken!
+}
+
+type UpdatePublicPermissionsPayload {
+    environment: Environment!
+}
+
+type UpdatePublishContentPermissionPayload {
+    permission: PublishContentPermission!
+}
+
+type UpdateReadContentPermissionPayload {
+    permission: ReadContentPermission!
+}
+
+type UpdateReadVersionContentPermissionPayload {
+    permission: ReadVersionContentPermission!
+}
+
+type UpdateSidebarElementPayload {
+    updatedSidebarElement: ISidebarElement!
+}
+
+type UpdateSidebarExtensionPayload {
+    updatedExtension: SidebarExtension!
+}
+
+type UpdateUnpublishContentPermissionPayload {
+    permission: UnpublishContentPermission!
+}
+
+type UpdateUpdateContentPermissionPayload {
+    permission: UpdateContentPermission!
+}
+
+type UpdateViewGroupPayload {
+    updatedViewGroup: ViewGroup!
+}
+
+type UpdateWebhookPayload {
+    updatedWebhook: Webhook!
+}
+
+type UpgradeEnvironmentAssetPayload {
+    environmentId: ID!
+    lastStep: Int!
+    status: String!
+}
+
+type UpsertTemplatePayload {
+    gcms: String
+}
+
+type User implements IUser {
+    createdAt: DateTime!
+    id: ID!
+    preferences: JSON
+    profile: Profile!
+    updatedAt: DateTime!
+}
+
+type UserAnalytics {
+    conversionPage: String
+    createdAt: DateTime!
+    gclid: String
+    hubspotutk: String
+    id: ID!
+    landingPage: String
+    referrer: String
+    updatedAt: DateTime!
+    utmCampaign: String
+    utmContent: String
+    utmMedium: String
+    utmSource: String
+    utmTerm: String
+}
+
+type UserForApp {
+    id: ID!
+    permissions: [String!]!
+    roles: [UserForAppRole]!
+}
+
+type UserForAppRole {
+    isDefault: Boolean!
+    name: String!
+}
+
+type UserModel implements IFieldParent & IModel {
+    apiId: String!
+    apiIdPlural: String!
+    contentViews(filter: ContentViewFilterInput, includeSystemContentViews: Boolean = false): [ContentView!]!
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    displayName: String!
+    environment: Environment!
+    field(id: ID!): IField!
+    fields(includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false): [IField!]!
+    fieldsConnection(first: Int! = 25, includeApiOnlyFields: Boolean = false, includeHiddenFields: Boolean = false, includeSystemFields: Boolean = true, skip: Int! = 0): FieldsConnection!
+    "Model has at least one document"
+    hasContent: Boolean!
+    hasLocalizedComponents: Boolean!
+    id: ID!
+    isLocalized: Boolean!
+    isSystem: Boolean!
+    isVersioned: Boolean!
+    sidebarElements: [ISidebarElement!]!
+    titleFields: [IField!]!
+    updatedAt: DateTime!
+    viewerPermission: ModelViewerPermission!
+}
+
+type UserPreferences {
+    preferences: JSON
+}
+
+type UserSelection {
+    createdAt: DateTime!
+    id: ID!
+    selection: JSON!
+    updatedAt: DateTime!
+}
+
+type UserViewer implements IViewer {
+    app(apiId: String!): App!
+    availableExtensionPermissions: [AvailableExtensionPermission!]!
+    availableExtensionSrcTypes: [ExtensionSrcType!]!
+    availableIntegrations: [INTEGRATION_PROVIDER!]!
+    commonAssetConfig: CommonFilestack!
+    id: ID!
+    paymentAccount(id: ID!): PaymentAccount!
+    paymentAccounts: [PaymentAccount!]!
+    pendingInvite(code: String!): Invite
+    pendingInvites: [Invite!]!
+    pendingProject(id: ID!): IPendingProject
+    pendingProjects: [IPendingProject!]!
+    plans: [Plan!]!
+    project(id: ID): Project
+    projects: [Project!]!
+    regions: [Region!]!
+    templates: [ITemplate!]!
+    user: User!
+}
+
+type ViewGroup {
+    contentType: ViewGroupContentType!
+    contentViews(filter: ContentViewFilterInput): [ContentView!]!
+    createdAt: DateTime!
+    createdBy: Member
+    description: String
+    environment: Environment!
+    id: ID!
+    name: String!
+    position: Int!
+    type: ViewGroupType!
+    updatedAt: DateTime!
+}
+
+type Viewer implements IUser {
+    availableExtensionPermissions: [AvailableExtensionPermission!]!
+    availableExtensionSrcTypes: [ExtensionSrcType!]!
+    availableIntegrations: [INTEGRATION_PROVIDER!]!
+    createdAt: DateTime!
+    id: ID!
+    paymentAccount(id: ID!): PaymentAccount!
+    paymentAccounts: [PaymentAccount!]!
+    pendingInvite(code: String!): Invite
+    pendingInvites: [Invite!]!
+    plans: [Plan!]!
+    preferences: JSON
+    profile: Profile!
+    project(id: ID!): Project
+    projects: [Project!]!
+    regions: [Region!]!
+    templates: [ITemplate!]!
+    updatedAt: DateTime!
+}
+
+type Webhook {
+    createdAt: DateTime!
+    createdBy: CreatedBy
+    description: String
+    environment: Environment!
+    hasSecretKey: Boolean
+    headers: JSON!
+    id: ID!
+    """
+
+    Defines wether the data of the changed data will be sent
+    in the webhook payload or not
+    """
+    includePayload: Boolean!
+    isActive: Boolean!
+    isSystem: Boolean!
+    log(id: String!): WebhookLog
+    logs(after: String, limit: Int, orderBy: WebhookLogOrderByInput = calledAt_ASC, skip: Int, where: WebhookLogsWhereInput): WebhookLogsPayload!
+    method: WebhookMethod!
+    """
+
+    List of models on which the webhook will be triggered.
+    In case of any model, this array will be empty.
+    """
+    models: [IModel!]!
+    name: String!
+    """
+
+    List of stages on which the webhook will be triggered.
+    In case of any stage, this array will be empty.
+    """
+    stages: [Stage!]!
+    "When one of the actions happen, the webhook will be triggered"
+    triggerActions: [WebhookTriggerAction!]!
+    triggerSources: [WebhookTriggerSource!]
+    "The type of trigger the webhook is registered"
+    triggerType: WebhookTriggerType!
+    updatedAt: DateTime!
+    url: String!
+}
+
+type WebhookLog {
+    attempts: Int!
+    calledAt: DateTime!
+    duration: Float!
+    id: String!
+    model: IModel
+    requestPayload: JSON
+    responsePayload: String
+    responsePayloadSize: Int
+    statusCode: Int!
+    triggerAction: WebhookTriggerAction!
+}
+
+type WebhookLogsPayload {
+    entries: [WebhookLog!]!
+    total: Int!
+}
+
+type _AddMemberPayload {
+    member: Member!
+}
+
+type _AddStageToContentViewsPayload {
+    gcms: String
+}
+
+type _BookOverLimitAddonUsage {
+    gcms: String
+}
+
+type _BookOverLimitPayload {
+    gcms: String
+}
+
+type _DeleteProjectPayload {
+    gcms: String
+}
+
+type _FixEnvironmentsWithInvalidFilestackConfigPayload {
+    gcms: String
+}
+
+type _GetUserPayload {
+    gcms: String
+}
+
+type _HideNonRequiredFieldsInDefaultContentViewPayload {
+    gcms: String
+}
+
+type _OverLimitProject {
+    gcms: String
+}
+
+type _OverLimitProjectAddons {
+    gcms: String
+}
+
+type _OverLimitProjectAddonsValues {
+    gcms: String
+}
+
+type _OverLimitProjectUsage {
+    gcms: String
+}
+
+type _ResetContentConfigPayload {
+    gcms: String
+}
+
+type _UpdatePlanTrialPayload {
+    gcms: String
+}
+
+enum AppContentPermission {
+    NONE
+    READ
+    READ_WRITE
+}
+
+enum AppElementType {
+    field
+    formSidebar
+    page
+}
+
+enum AppInstallationStatus {
+    COMPLETED
+    DISABLED
+    PENDING
+}
+
+enum AppPublicationStatus {
+    PENDING
+    PRIVATE
+    PUBLIC
+}
+
+enum AppSchemaPermission {
+    NONE
+    READ
+    READ_WRITE
+}
+
+enum AppUserPermission {
+    NONE
+    READ
+}
+
+enum AppWebhooksPermission {
+    NONE
+    READ_WRITE
+}
+
+enum AuditLogAction {
+    ACCEPT
+    CREATE
+    DELETE
+    PUBLISH
+    UNPUBLISH
+    UPDATE
+}
+
+enum AuditLogOrderByInput {
+    timestamp_ASC
+    timestamp_DESC
+}
+
+enum AuditLogResource {
+    COMPONENT
+    CONTENT
+    CONTENTVIEW
+    ENUMERATION
+    ENUMERATION_VALUE
+    ENVIRONMENT
+    EXTENSION
+    FIELD
+    INVITE
+    LOCALE
+    MEMBER
+    MODEL
+    PAT
+    PROJECT
+    ROLE
+    STAGE
+    VIEWGROUP
+    WEBHOOK
+}
+
+enum AuditLogTriggerType {
+    APP_TOKEN
+    OPEN
+    PAT
+    THIRD_PARTY
+    USER
+}
+
+enum AvailableExtensionPermissionAction {
+    API
+    FORM
+    INPUT
+}
+
+enum AvailableExtensionSrcType {
+    INLINE
+    SDK
+}
+
+enum CacheControlScope {
+    PRIVATE
+    PUBLIC
+}
+
+enum ColorPalette {
+    BROWN
+    GREEN
+    ORANGE
+    PINK
+    PURPLE
+    RED
+    TEAL
+    YELLOW
+}
+
+enum ColumnOrderByDir {
+    ASC
+    DESC
+}
+
+enum ComponentFieldType {
+    COMPONENT
+}
+
+enum ComponentUnionFieldType {
+    COMPONENT_UNION
+}
+
+enum ContentPermissionTargetKind {
+    PAT
+    PUBLIC
+    ROLE
+}
+
+enum ContentViewColumnType {
+    FIELD
+    STAGES
+}
+
+enum ContentViewType {
+    BUILT_IN
+    PUBLIC
+}
+
+enum EnumerableFieldType {
+    ENUMERATION
+}
+
+enum ExtensionFieldType {
+    ASSET
+    BOOLEAN
+    COLOR
+    DATE
+    DATETIME
+    ENUMERATION
+    FLOAT
+    GRAPHQL
+    ID
+    INT
+    JSON
+    LOCATION
+    RELATION
+    REST
+    RICHTEXT
+    STRING
+    UNION
+}
+
+"Type of feedback"
+enum FeedbackType {
+    "Used when deleting an account"
+    DELETE_ACCOUNT
+    "Used when deleting a project"
+    DELETE_PROJECT
+    "Used when downgrading a plan on a project"
+    DOWNGRADE_PLAN
+    "Used when sending a feedback from a new feature on the webapp"
+    FEATURE_FEEDBACK
+    "Used when sending a feedback from the feedback form on the webapp"
+    GENERAL_FEEDBACK
+    "Used when leaving a project"
+    LEAVE_PROJECT
+}
+
+enum FieldAppElementFeature {
+    FieldRenderer
+    ListRenderer
+    TableRenderer
+}
+
+enum GraphQLRemoteSourceIntrospectionMethod {
+    GET
+    POST
+}
+
+enum INTEGRATION_PROVIDER {
+    GATSBY_CLOUD
+    NETLIFY
+}
+
+enum LifecycleStepType {
+    API_PERMISSIONS_SET
+    CONTENT_ADDED
+    EXPLORE_CONTENT_API
+    EXTERNAL_TRAFFIC
+    SCHEMA_SETUP
+}
+
+enum LimitType {
+    API_OPERATIONS
+    ASSET_TRAFFIC
+    AUDIT_LOGS_RETENTION_PERIOD
+    CONTENT_MODELS
+    CONTENT_PERMISSIONS
+    CONTENT_STAGES
+    ENVIRONMENTS
+    ENVIRONMENTS_AUTOMATIC_BACKUPS
+    INTEGRATIONS
+    LOCALES
+    MODELS
+    PERMANENT_AUTH_TOKENS
+    RATE_LIMIT_PER_SECOND
+    RECORDS
+    REMOTE_FIELDS
+    REMOTE_FIELDS_HTTP_WORKERS
+    REMOTE_FIELDS_MAX_EXECUTION_TIME
+    REMOTE_FIELDS_MAX_RESPONSE_SIZE
+    REMOTE_SOURCES
+    ROLES
+    SCHEDULING_OPERATIONS_IN_RELEASE
+    SCHEDULING_PENDING_OPERATIONS
+    SCHEDULING_PENDING_RELEASES
+    SEATS
+    VERSIONS
+    VERSION_RETENTION_PERIOD
+    WEBHOOKS
+    WORKFLOW_STEPS
+}
+
+enum MigrationOperationType {
+    BATCH
+    CREATE_ENUMERABLE_FIELD
+    CREATE_ENUMERATION
+    CREATE_ENVIRONMENT
+    CREATE_LOCALE
+    CREATE_MODEL
+    CREATE_PROJECT_FROM_TEMPLATE
+    CREATE_RELATIONAL_FIELD
+    CREATE_REMOTE_FIELD
+    CREATE_REMOTE_TYPE_DEFINITION
+    CREATE_SIMPLE_FIELD
+    CREATE_STAGE
+    CREATE_UNION_FIELD
+    DELETE_ENUMERATION
+    DELETE_FIELD
+    DELETE_LOCALE
+    DELETE_MODEL
+    DELETE_REMOTE_TYPE_DEFINITION
+    DELETE_STAGE
+    UPDATE_ENUMERABLE_FIELD
+    UPDATE_ENUMERATION
+    UPDATE_LOCALE
+    UPDATE_MODEL
+    UPDATE_RELATIONAL_FIELD
+    UPDATE_REMOTE_TYPE_DEFINITION
+    UPDATE_SIMPLE_FIELD
+    UPDATE_STAGE
+    UPDATE_UNION_FIELD
+}
+
+enum MigrationStatus {
+    FAILED
+    QUEUED
+    RUNNING
+    SUCCESS
+    TIMEOUT
+}
+
+enum NetlifyBuildState {
+    BUILDING
+    FAILED
+    PREPARING
+    READY
+}
+
+enum OAuthGrantType {
+    client_credentials
+}
+
+enum PermanentAuthTokenAudience {
+    CONTENT_API
+    MANAGEMENT_API
+}
+
+enum PermissionAction {
+    APP_CREATE
+    APP_DELETE
+    APP_INSTALLATION_CREATE
+    APP_INSTALLATION_DELETE
+    APP_INSTALLATION_UPDATE
+    APP_UPDATE
+    AUDIT_LOGS_READ
+    COMPONENT_CREATE
+    COMPONENT_DELETE
+    COMPONENT_READ
+    COMPONENT_UPDATE
+    CONTENTVIEW_CREATE
+    CONTENTVIEW_DELETE
+    CONTENTVIEW_READ
+    CONTENTVIEW_SYSTEM_UPDATE
+    CONTENTVIEW_UPDATE
+    CONTENT_CREATE
+    CONTENT_DELETE
+    CONTENT_PERMISSION_CREATE
+    CONTENT_PERMISSION_DELETE
+    CONTENT_PERMISSION_READ
+    CONTENT_PERMISSION_UPDATE
+    CONTENT_PUBLISH
+    CONTENT_READ
+    CONTENT_UPDATE
+    CONTENT_UPDATE_PUBLISHED
+    ENUMERATION_CREATE
+    ENUMERATION_DELETE
+    ENUMERATION_READ
+    ENUMERATION_UPDATE
+    ENVIRONMENT_BACKUP_CREATE
+    ENVIRONMENT_BACKUP_DELETE
+    ENVIRONMENT_BACKUP_READ
+    ENVIRONMENT_BACKUP_RESTORE
+    ENVIRONMENT_BACKUP_UPDATE
+    ENVIRONMENT_CREATE
+    ENVIRONMENT_DELETE
+    ENVIRONMENT_PROMOTE
+    ENVIRONMENT_READ
+    ENVIRONMENT_UPDATE
+    EXTENSION_CREATE
+    EXTENSION_DELETE
+    EXTENSION_READ
+    EXTENSION_UPDATE
+    FIELD_CREATE
+    FIELD_DELETE
+    FIELD_READ
+    FIELD_UPDATE
+    INTEGRATION_CREATE
+    INTEGRATION_DELETE
+    INTEGRATION_READ
+    INTEGRATION_UPDATE
+    LOCALE_CREATE
+    LOCALE_DELETE
+    LOCALE_READ
+    LOCALE_UPDATE
+    MANAGE_PAYMENT
+    MODEL_CREATE
+    MODEL_DELETE
+    MODEL_READ
+    MODEL_UPDATE
+    NETLIFY_TRIGGER_BUILD
+    PAT_CREATE
+    PAT_DELETE
+    PAT_READ
+    PAT_UPDATE
+    PLAYGROUND_USE
+    PROJECT_CLONE
+    PROJECT_DELETE
+    PROJECT_UPDATE
+    REMOTE_SOURCE_CREATE
+    REMOTE_SOURCE_DELETE
+    REMOTE_SOURCE_READ
+    REMOTE_SOURCE_UPDATE
+    ROLE_CREATE
+    ROLE_DELETE
+    ROLE_UPDATE
+    STAGE_CREATE
+    STAGE_DELETE
+    STAGE_READ
+    STAGE_UPDATE
+    STORAGE_BUCKET_CREATE
+    STORAGE_BUCKET_DELETE
+    STORAGE_BUCKET_READ
+    STORAGE_BUCKET_UPDATE
+    USER_ASSIGNROLE
+    USER_INVITE
+    USER_REMOVE
+    VIEW_GROUP_CREATE
+    VIEW_GROUP_DELETE
+    VIEW_GROUP_READ
+    VIEW_GROUP_UPDATE
+    VIEW_ROLE_PERMISSION_SETTINGS
+    VIEW_SCHEMA
+    VIEW_TEAM_MEMBER_SETTINGS
+    WEBHOOK_CREATE
+    WEBHOOK_DELETE
+    WEBHOOK_READ
+    WEBHOOK_UPDATE
+}
+
+enum REMOTE_GRAPHQL_TYPE {
+    ENUM
+    INPUT_OBJECT
+    INTERFACE
+    OBJECT
+    SCALAR
+    UNION
+}
+
+enum RelationalFieldType {
+    ASSET
+    RELATION
+}
+
+enum RemoteFieldApiMethod {
+    GET
+    POST
+}
+
+enum RemoteFieldType {
+    GRAPHQL
+    REST
+}
+
+enum RemoteSourceKind {
+    CommerceLayer
+    CommerceTools
+    Custom
+}
+
+enum RemoteSourceType {
+    GRAPHQL
+    REST
+}
+
+"Field types"
+enum SimpleFieldType {
+    BOOLEAN
+    COLOR
+    DATE
+    DATETIME
+    FLOAT
+    ID
+    INT
+    JSON
+    LOCATION
+    RICHTEXT
+    STRING
+}
+
+enum SystemSidebarElementType {
+    INFORMATION
+    LOCALIZATIONS
+    PREVIEW_URLS
+    RELEASES
+    STAGES
+    VERSIONS
+}
+
+enum TrackEvent {
+    CHECKED_QUICKSTART
+    CREATED_CONTENT
+    USED_PLAYGROUND
+}
+
+enum UnionFieldType {
+    UNION
+}
+
+enum ViewGroupContentType {
+    ASSET
+    DEFAULT
+}
+
+enum ViewGroupType {
+    CUSTOM
+    SYSTEM
+    USER_CREATED
+}
+
+enum VisibilityTypes {
+    "Field is not shown, and can only be read or edited through the API"
+    API_ONLY
+    "Field is not shown, but can be used by other fields such as slugs or UI Extensions"
+    HIDDEN
+    "Field is shown but can't be edited in the UI, only through the API"
+    READ_ONLY
+    "Field can be read and edited"
+    READ_WRITE
+}
+
+enum WebhookLogOrderByInput {
+    calledAt_ASC
+    calledAt_DESC
+}
+
+enum WebhookMethod {
+    DELETE
+    GET
+    POST
+    PUT
+}
+
+"""
+
+Defines which operation will trigger the webhook.
+Some operations rely on the type of stage. E.g. on a
+publishing stage, the webhook will only be triggered for
+PUBLISH and UNPUBLISH events. On other stages, only
+CREATE, UPDATE and DELETE are triggering the webhook.
+"""
+enum WebhookTriggerAction {
+    CREATE
+    DELETE
+    PUBLISH
+    UNPUBLISH
+    UPDATE
+}
+
+enum WebhookTriggerSource {
+    MEMBER
+    PAT
+    PUBLIC
+}
+
+"Defines the type of the trigger"
+enum WebhookTriggerType {
+    CONTENT_MODEL
+}
+
+enum _CloneProjectOptionsInputEstimatedDuration {
+    LONG
+    SHORT
+}
+
+scalar DateTime
+
+"The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf)."
+scalar JSON
+
+input AppPermissionsInput {
+    CONTENT: AppContentPermission
+    SCHEMA: AppSchemaPermission
+    USER: AppUserPermission
+    WEBHOOKS: AppWebhooksPermission
+}
+
+input AuditLogWhereInput {
+    action: AuditLogAction
+    entityId: String
+    environmentName: String
+    resource: AuditLogResource
+    timestamp: DateTime
+    timestamp_gt: DateTime
+    timestamp_gte: DateTime
+    timestamp_lt: DateTime
+    timestamp_lte: DateTime
+    triggerType: AuditLogTriggerType
+    triggeredBy: String
+}
+
+input BatchMigrationChangeInput {
+    createComponent: BatchMigrationCreateComponentInput
+    createComponentField: BatchMigrationCreateComponentFieldInput
+    createComponentUnionField: BatchMigrationCreateComponentUnionFieldInput
+    createCustomSidebarElement: BatchMigrationCreateCustomSidebarElementInput
+    createEnumerableField: BatchMigrationCreateEnumerableFieldInput
+    createEnumeration: BatchMigrationCreateEnumerationInput
+    createGraphQLRemoteSource: BatchMigrationCreateGraphQLRemoteSourceInput
+    createLocale: BatchMigrationCreateLocaleInput
+    "creates a new model"
+    createModel: BatchMigrationCreateModelInput
+    createRESTRemoteSource: BatchMigrationCreateRESTRemoteSourceInput
+    createRelationalField: BatchMigrationCreateRelationalFieldInput
+    createRemoteField: BatchMigrationCreateRemoteFieldInput
+    createSimpleField: BatchMigrationCreateSimpleFieldInput
+    createStage: BatchMigrationCreateStageInput
+    createUnionField: BatchMigrationCreateUnionFieldInput
+    "creates a webhook"
+    createWebhook: BatchMigrationCreateWebhookInput
+    deleteComponent: BatchMigrationDeleteComponentInput
+    deleteCustomSidebarElement: BatchMigrationDeleteCustomSidebarElementInput
+    deleteEnumeration: BatchMigrationDeleteEnumerationInput
+    deleteField: BatchMigrationDeleteFieldInput
+    deleteLocale: BatchMigrationDeleteLocaleInput
+    deleteModel: BatchMigrationDeleteModelInput
+    deleteRemoteSource: BatchMigrationDeleteRemoteSourceInput
+    deleteStage: BatchMigrationDeleteStageInput
+    "deletes a webhook"
+    deleteWebhook: BatchMigrationDeleteWebhookInput
+    refreshGraphQLRemoteSourceSchema: BatchMigrationRefreshGraphQLRemoteSourceSchemaInput
+    "updates config and status for an AppInstallation, only valid for App Token bearer"
+    updateAppInstallation: BatchMigrationUpdateAppInstallationInput
+    updateComponent: BatchMigrationUpdateComponentInput
+    updateComponentField: BatchMigrationUpdateComponentFieldInput
+    updateComponentUnionField: BatchMigrationUpdateComponentUnionFieldInput
+    updateEnumerableField: BatchMigrationUpdateEnumerableFieldInput
+    updateEnumeration: BatchMigrationUpdateEnumerationInput
+    updateGraphQLRemoteSource: BatchMigrationUpdateGraphQLRemoteSourceInput
+    updateLocale: BatchMigrationUpdateLocaleInput
+    updateModel: BatchMigrationUpdateModelInput
+    updateRESTRemoteSource: BatchMigrationUpdateRESTRemoteSourceInput
+    updateRelationalField: BatchMigrationUpdateRelationalFieldInput
+    updateRemoteField: BatchMigrationUpdateRemoteFieldInput
+    updateSimpleField: BatchMigrationUpdateSimpleFieldInput
+    updateStage: BatchMigrationUpdateStageInput
+    updateUnionField: BatchMigrationUpdateUnionFieldInput
+    "updates a webhook"
+    updateWebhook: BatchMigrationUpdateWebhookInput
+}
+
+"Creating a component field"
+input BatchMigrationCreateComponentFieldInput {
+    apiId: String!
+    componentApiId: String!
+    description: String
+    displayName: String!
+    formExtension: String
+    formRenderer: String
+    isList: Boolean
+    isRequired: Boolean
+    parentApiId: String!
+    position: Int
+    tableExtension: String
+    tableRenderer: String
+    visibility: VisibilityTypes
+}
+
+"Creating a component."
+input BatchMigrationCreateComponentInput {
+    apiId: String!
+    apiIdPlural: String!
+    description: String
+    displayName: String!
+}
+
+"Creating a component-union field"
+input BatchMigrationCreateComponentUnionFieldInput {
+    apiId: String!
+    componentApiIds: [String!]!
+    description: String
+    displayName: String!
+    formExtension: String
+    formRenderer: String
+    isList: Boolean
+    isRequired: Boolean
+    parentApiId: String!
+    tableExtension: String
+    tableRenderer: String
+    visibility: VisibilityTypes
+}
+
+"Creating a custom input type definition"
+input BatchMigrationCreateCustomInputTypeDefinitionInput {
+    "GraphQL type input definition in SDL format"
+    sdl: String!
+}
+
+"Creating a custom sidebar element with app element"
+input BatchMigrationCreateCustomSidebarElementInput {
+    "Api Id of the App"
+    appApiId: String!
+    "Api Id of the App element to create custom sidebar element with"
+    appElementApiId: String!
+    "Json metadata associated with the sidebar element"
+    config: JSON
+    "Description name for the sidebar element"
+    description: String
+    "Display name for the sidebar element"
+    displayName: String!
+    "Api Id of the model associated with the custom sidebar element"
+    modelApiId: String!
+}
+
+"Creating a custom type definition"
+input BatchMigrationCreateCustomTypeDefinitionInput {
+    """
+
+    GraphQL type definition in SDL format
+    Can be enum or object type
+    """
+    sdl: String!
+}
+
+"Creating an enumerable field."
+input BatchMigrationCreateEnumerableFieldInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    enumerationApiId: String!
+    formExtension: String
+    formRenderer: String
+    isHidden: Boolean
+    isList: Boolean
+    isLocalized: Boolean
+    isRequired: Boolean
+    isSystem: Boolean
+    isTitle: Boolean
+    isUnique: Boolean
+    migrationValue: String
+    modelApiId: String
+    parentApiId: String
+    position: Int
+    tableExtension: String
+    tableRenderer: String
+    visibility: VisibilityTypes
+}
+
+"Creating enumeration"
+input BatchMigrationCreateEnumerationInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    isSystem: Boolean
+    values: [BatchMigrationCreateEnumerationValueInput!]!
+}
+
+"enumeration value"
+input BatchMigrationCreateEnumerationValueInput {
+    apiId: String!
+    displayName: String!
+}
+
+input BatchMigrationCreateGraphQLRemoteSourceInput {
+    debugEnabled: Boolean
+    description: String
+    displayName: String!
+    headers: JSON
+    "HTTP headers that will be used for introspection"
+    introspectionHeaders: JSON
+    "HTTP method that will be used for introspection"
+    introspectionMethod: GraphQLRemoteSourceIntrospectionMethod!
+    """
+
+    Specific URL that will be used for introspection if the introspection is available on another url than the regular url.
+    Can be ignored if the introspection url is the same as the url of the remote source.
+    """
+    introspectionUrl: String
+    kind: RemoteSourceKind!
+    "Oauth input that can be used to get access token for the remote source"
+    oAuth: RemoteSourceOAuthInput
+    "Unique prefix that will be prepended to all of the remote types. This value cannot be changed!"
+    prefix: String!
+    "Custom GraphQL input types that can be used as arguments in remote fields that belong to this remoteSource"
+    remoteTypeDefinitions: BatchMigrationCreateRemoteTypeDefinitionInput
+    url: String!
+}
+
+"Creating locale"
+input BatchMigrationCreateLocaleInput {
+    apiId: String!
+    description: String
+    displayName: String!
+}
+
+"Creating a model."
+input BatchMigrationCreateModelInput {
+    "The model apiId"
+    apiId: String!
+    "The models plural apiId. This is used for lists"
+    apiIdPlural: String!
+    "Optional description of the model"
+    description: String
+    "Display name that is used to render the model in the webapp"
+    displayName: String!
+    "Only AppTokens should provide this flag"
+    isSystem: Boolean
+}
+
+input BatchMigrationCreateRESTRemoteSourceInput {
+    debugEnabled: Boolean
+    description: String
+    displayName: String!
+    headers: JSON
+    kind: RemoteSourceKind!
+    "Oauth input that can be used to get access token for the remote source"
+    oAuth: RemoteSourceOAuthInput
+    "Unique prefix that will be prepended to all of the remote types. This value cannot be changed!"
+    prefix: String!
+    "Remote type definitions that the remote source supports or input types that can be used by any remote field of this remote source"
+    remoteTypeDefinitions: BatchMigrationCreateRemoteTypeDefinitionInput
+    url: String!
+}
+
+"Creating a relational field"
+input BatchMigrationCreateRelationalFieldInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    formExtension: String
+    formRenderer: String
+    isHidden: Boolean
+    isList: Boolean
+    """
+
+    Marks the field as required.
+    Note: This is only supported for RelationFieldType ASSET!
+    """
+    isRequired: Boolean
+    modelApiId: String
+    parentApiId: String
+    reverseField: BatchMigrationCreateReverseRelationalFieldInput!
+    tableExtension: String
+    tableRenderer: String
+    type: RelationalFieldType!
+    visibility: VisibilityTypes
+}
+
+input BatchMigrationCreateRemoteFieldInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    formConfig: JSON
+    formExtension: String
+    formRenderer: String
+    inputArgs: [BatchMigrationRemoteFieldInputArgInput!]
+    isList: Boolean
+    isRequired: Boolean
+    parentApiId: String!
+    position: Int
+    remoteConfig: BatchMigrationRemoteFieldConfigInput!
+    tableConfig: JSON
+    tableExtension: String
+    tableRenderer: String
+    type: RemoteFieldType!
+    visibility: VisibilityTypes
+}
+
+input BatchMigrationCreateRemoteTypeDefinitionInput {
+    sdl: String!
+}
+
+"reverse field args"
+input BatchMigrationCreateReverseRelationalFieldInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    isHidden: Boolean
+    isList: Boolean
+    isUnidirectional: Boolean
+    modelApiId: String!
+    visibility: VisibilityTypes
+}
+
+"reverse field args"
+input BatchMigrationCreateReverseUnionFieldInput {
+    apiId: String
+    description: String
+    displayName: String
+    isHidden: Boolean
+    isList: Boolean
+    modelApiIds: [String!]!
+    visibility: VisibilityTypes
+}
+
+"Creating a simple field."
+input BatchMigrationCreateSimpleFieldInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    embeddableModels: [String!]
+    embedsEnabled: Boolean
+    formConfig: JSON
+    formExtension: String
+    formRenderer: String
+    initialValue: String
+    isHidden: Boolean
+    isList: Boolean
+    isLocalized: Boolean
+    isRequired: Boolean
+    isSystem: Boolean
+    isTitle: Boolean
+    isUnique: Boolean
+    migrationValue: String
+    modelApiId: String
+    parentApiId: String
+    position: Int
+    tableConfig: JSON
+    tableExtension: String
+    tableRenderer: String
+    type: SimpleFieldType!
+    validations: SimpleFieldValidationsInput
+    visibility: VisibilityTypes
+}
+
+"Creating a stage."
+input BatchMigrationCreateStageInput {
+    apiId: String!
+    color: ColorPalette!
+    description: String
+    displayName: String!
+    position: Int
+}
+
+"Creating a union field"
+input BatchMigrationCreateUnionFieldInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    formExtension: String
+    formRenderer: String
+    isHidden: Boolean
+    isList: Boolean
+    modelApiId: String
+    parentApiId: String
+    reverseField: BatchMigrationCreateReverseUnionFieldInput!
+    tableExtension: String
+    tableRenderer: String
+    visibility: VisibilityTypes
+}
+
+input BatchMigrationCreateWebhookInput {
+    description: String
+    headers: JSON
+    includePayload: Boolean!
+    isActive: Boolean!
+    isSystem: Boolean
+    method: WebhookMethod = POST
+    """
+
+    Pass an empty array for all existing models.
+    This will also setup the webhook for models
+    created in the future
+    """
+    models: [ID!]!
+    name: String!
+    secretKey: String
+    """
+
+    Pass an empty array for all existing stages.
+    This will also setup the webhook for stages
+    created in the future
+    """
+    stages: [ID!]!
+    triggerActions: [WebhookTriggerAction!]!
+    triggerSources: [WebhookTriggerSource!]
+    triggerType: WebhookTriggerType!
+    url: String!
+}
+
+"Deleting a component."
+input BatchMigrationDeleteComponentInput {
+    apiId: String!
+}
+
+"Delete an existing custom input type definition"
+input BatchMigrationDeleteCustomInputTypeDefinitionInput {
+    apiId: String!
+}
+
+"Deleting a custom sidebar element created by app element"
+input BatchMigrationDeleteCustomSidebarElementInput {
+    "Api Id of the App"
+    appApiId: String!
+    "Api Id of the App element associated with the custom sidebar element"
+    appElementApiId: String!
+    "Api Id of the model associated with the custom sidebar element"
+    modelApiId: String!
+}
+
+"Deleting enumarable field"
+input BatchMigrationDeleteEnumerationInput {
+    apiId: String!
+}
+
+"Deleting a field."
+input BatchMigrationDeleteFieldInput {
+    apiId: String!
+    modelApiId: String
+    parentApiId: String
+}
+
+"Deleting locale"
+input BatchMigrationDeleteLocaleInput {
+    apiId: String!
+    force: Boolean
+}
+
+"Deleting a model."
+input BatchMigrationDeleteModelInput {
+    apiId: String!
+}
+
+input BatchMigrationDeleteRemoteSourceInput {
+    prefix: String!
+}
+
+"Delete an existing custom type definition"
+input BatchMigrationDeleteRemoteTypeDefinitionInput {
+    apiId: String!
+}
+
+"Deleting a stage."
+input BatchMigrationDeleteStageInput {
+    apiId: String!
+}
+
+input BatchMigrationDeleteWebhookInput {
+    webhookId: ID!
+}
+
+"Creating a simple field."
+input BatchMigrationEmbeddableModelsInput {
+    modelsToAdd: [String!]
+    modelsToRemove: [String!]
+}
+
+input BatchMigrationInput {
+    changes: [BatchMigrationChangeInput!]!
+    environmentId: ID!
+    name: String
+}
+
+input BatchMigrationRefreshGraphQLRemoteSourceSchemaInput {
+    prefix: String!
+}
+
+input BatchMigrationRemoteFieldConfigInput {
+    cacheTTLSeconds: Int
+    "If true, headers that are sent by the client will be forwarded to the remote source"
+    forwardClientHeaders: Boolean
+    "In case of apiType GraphQL graphqlQuery contains the GraphQL query that will be sent to the remote source"
+    graphQLQuery: String
+    headers: JSON
+    method: RemoteFieldApiMethod!
+    remoteSourcePrefix: String!
+    "In case of apiType REST restPath contains the path that will be appended to the API base url"
+    restPath: String
+    returnTypeApiId: String!
+}
+
+input BatchMigrationRemoteFieldInputArgInput {
+    apiId: String!
+    isList: Boolean!
+    isRequired: Boolean!
+    remoteTypeApiId: String!
+}
+
+input BatchMigrationUpdateAppInstallationInput {
+    "App Installation config, the object passed will be merged with the existing config"
+    config: JSON
+    "App Installation status"
+    status: AppInstallationStatus
+}
+
+"Updating component field"
+input BatchMigrationUpdateComponentFieldInput {
+    apiId: String!
+    description: String
+    displayName: String
+    isList: Boolean
+    isRequired: Boolean
+    newApiId: String
+    parentApiId: String!
+    visibility: VisibilityTypes
+}
+
+"Updating a component."
+input BatchMigrationUpdateComponentInput {
+    apiId: String!
+    apiIdPlural: String
+    description: String
+    displayName: String
+    newApiId: String
+}
+
+"updating a component-union field"
+input BatchMigrationUpdateComponentUnionFieldInput {
+    apiId: String!
+    componentApiIds: [String!]
+    description: String
+    displayName: String
+    newApiId: String
+    parentApiId: String!
+}
+
+"Updating enumerable field"
+input BatchMigrationUpdateEnumerableFieldInput {
+    apiId: String!
+    description: String
+    displayName: String
+    initialValue: String
+    isHidden: Boolean
+    isList: Boolean
+    isLocalized: Boolean
+    isRequired: Boolean
+    isSystem: Boolean
+    isTitle: Boolean
+    isUnique: Boolean
+    migrationValue: String
+    modelApiId: String
+    newApiId: String
+    parentApiId: String
+    position: Int
+    visibility: VisibilityTypes
+}
+
+"Updating enumeration"
+input BatchMigrationUpdateEnumerationInput {
+    apiId: String!
+    description: String
+    displayName: String
+    isSystem: Boolean
+    newApiId: String
+    valuesToCreate: [BatchMigrationCreateEnumerationValueInput!]
+    valuesToDelete: [String!]
+    valuesToUpdate: [BatchMigrationUpdateEnumerationValueInput!]
+}
+
+"update enumeration value"
+input BatchMigrationUpdateEnumerationValueInput {
+    apiId: String!
+    displayName: String
+    newApiId: String
+}
+
+input BatchMigrationUpdateGraphQLRemoteSourceInput {
+    debugEnabled: Boolean
+    description: String
+    displayName: String
+    headers: JSON
+    introspectionHeaders: JSON
+    introspectionMethod: GraphQLRemoteSourceIntrospectionMethod
+    introspectionUrl: String
+    kind: RemoteSourceKind
+    "Oauth input that can be used to get access token for the remote source"
+    oAuth: RemoteSourceOAuthInput
+    prefix: String!
+    remoteTypeDefinitionsToUpsert: BatchMigrationUpsertRemoteTypeDefinitionsInput
+    url: String
+}
+
+"Updating locale"
+input BatchMigrationUpdateLocaleInput {
+    apiId: String!
+    description: String
+    displayName: String
+    isDefault: Boolean
+    newApiId: String
+}
+
+"Updating a model."
+input BatchMigrationUpdateModelInput {
+    apiId: String!
+    apiIdPlural: String
+    description: String
+    displayName: String
+    isSystem: Boolean
+    newApiId: String
+}
+
+input BatchMigrationUpdateRESTRemoteSourceInput {
+    debugEnabled: Boolean
+    description: String
+    displayName: String!
+    headers: JSON
+    kind: RemoteSourceKind
+    "Oauth input that can be used to get access token for the remote source"
+    oAuth: RemoteSourceOAuthInput
+    prefix: String!
+    remoteTypeDefinitionsToUpsert: BatchMigrationUpsertRemoteTypeDefinitionsInput
+    url: String
+}
+
+"Updating relational field"
+input BatchMigrationUpdateRelationalFieldInput {
+    apiId: String!
+    description: String
+    displayName: String
+    isHidden: Boolean
+    isList: Boolean
+    """
+
+    Marks the field as required.
+    Note: This is only supported for RelationFieldType ASSET!
+    """
+    isRequired: Boolean
+    isUnidirectional: Boolean
+    modelApiId: String
+    newApiId: String
+    parentApiId: String
+    visibility: VisibilityTypes
+}
+
+input BatchMigrationUpdateRemoteFieldConfigInput {
+    cacheTTLSeconds: Int
+    "If true, headers that are sent by the client will be forwarded to the remote source"
+    forwardClientHeaders: Boolean
+    "In case of apiType GraphQL graphqlQuery contains the GraphQL query that will be sent to the remote source"
+    graphQLQuery: String
+    headers: JSON
+    method: RemoteFieldApiMethod
+    remoteSourcePrefix: String
+    "In case of apiType REST restPath contains the path that will be appended to the API base url"
+    restPath: String
+    returnTypeApiId: String
+}
+
+input BatchMigrationUpdateRemoteFieldInput {
+    apiId: String!
+    description: String
+    displayName: String
+    extensions: JSON
+    formConfig: FieldConfigInput
+    inputArgs: BatchMigrationUpsertFieldInputArgInput
+    isList: Boolean
+    isRequired: Boolean
+    meta: JSON
+    newApiId: String
+    parentApiId: String!
+    remoteConfig: BatchMigrationUpdateRemoteFieldConfigInput
+    tableConfig: FieldConfigInput
+    visibility: VisibilityTypes
+}
+
+"reverse field args"
+input BatchMigrationUpdateReverseUnionFieldInput {
+    modelApiIds: [String!]!
+}
+
+"Updating simple field"
+input BatchMigrationUpdateSimpleFieldInput {
+    apiId: String!
+    description: String
+    displayName: String
+    embeddableModels: BatchMigrationEmbeddableModelsInput
+    embedsEnabled: Boolean
+    formConfig: JSON
+    formExtension: String
+    formRenderer: String
+    initialValue: String
+    isHidden: Boolean
+    isList: Boolean
+    isLocalized: Boolean
+    isRequired: Boolean
+    isSystem: Boolean
+    isTitle: Boolean
+    isUnique: Boolean
+    migrationValue: String
+    modelApiId: String
+    newApiId: String
+    parentApiId: String
+    position: Int
+    tableConfig: JSON
+    tableExtension: String
+    tableRenderer: String
+    validations: SimpleFieldValidationsInput
+    visibility: VisibilityTypes
+}
+
+"Updating a stage"
+input BatchMigrationUpdateStageInput {
+    apiId: String!
+    color: ColorPalette
+    description: String
+    display: String
+    newApiId: String
+    position: Int
+}
+
+"updating a union field"
+input BatchMigrationUpdateUnionFieldInput {
+    apiId: String!
+    description: String
+    displayName: String
+    modelApiId: String
+    newApiId: String
+    parentApiId: String
+    reverseField: BatchMigrationUpdateReverseUnionFieldInput
+    visibility: VisibilityTypes
+}
+
+input BatchMigrationUpdateWebhookInput {
+    description: String
+    headers: JSON
+    includePayload: Boolean
+    isActive: Boolean
+    isSystem: Boolean
+    method: WebhookMethod
+    models: [ID!]
+    name: String
+    secretKey: String
+    stages: [ID!]
+    triggerActions: [WebhookTriggerAction!]
+    triggerSources: [WebhookTriggerSource!]
+    triggerType: WebhookTriggerType
+    url: String
+    webhookId: ID!
+}
+
+input BatchMigrationUpsertFieldInputArgInput {
+    fieldInputArgsToCreate: [BatchMigrationUpsertFieldInputArgInputToCreateInput!]
+    fieldInputArgsToDelete: [BatchMigrationUpsertFieldInputArgInputToDeleteInput!]
+    fieldInputArgsToUpdate: [BatchMigrationUpsertFieldInputArgInputToUpdateInput!]
+}
+
+input BatchMigrationUpsertFieldInputArgInputToCreateInput {
+    apiId: String!
+    isList: Boolean!
+    isRequired: Boolean!
+    remoteTypeApiId: String!
+}
+
+input BatchMigrationUpsertFieldInputArgInputToDeleteInput {
+    argApiId: String!
+}
+
+input BatchMigrationUpsertFieldInputArgInputToUpdateInput {
+    apiId: String
+    argApiId: String!
+    isList: Boolean
+    isRequired: Boolean
+    remoteTypeApiId: String
+}
+
+input BatchMigrationUpsertRemoteTypeDefinitionToCreateInput {
+    sdl: String!
+}
+
+input BatchMigrationUpsertRemoteTypeDefinitionToDeleteInput {
+    apiId: String!
+}
+
+input BatchMigrationUpsertRemoteTypeDefinitionToUpdateInput {
+    apiId: String!
+    sdl: String
+}
+
+input BatchMigrationUpsertRemoteTypeDefinitionsInput {
+    remoteTypeDefinitionsToCreate: [BatchMigrationUpsertRemoteTypeDefinitionToCreateInput!]
+    remoteTypeDefinitionsToDelete: [BatchMigrationUpsertRemoteTypeDefinitionToDeleteInput!]
+    remoteTypeDefinitionsToUpdate: [BatchMigrationUpsertRemoteTypeDefinitionToUpdateInput!]
+}
+
+input CloneProjectInput {
+    description: String
+    name: String!
+    region: String!
+    "required to clone from a template or a project you are an owner of"
+    template: CloneProjectTemplateInput!
+}
+
+"clone project from a template"
+input CloneProjectTemplateInput {
+    "Set to false to not include content"
+    content: Boolean! = true
+    "id of template (if it's marked as template) or id of a project you are an owner of"
+    templateId: ID!
+    "Set to true to include webhooks. If webhooks are included, they will be disabled initially in the cloned project."
+    webhooks: Boolean! = false
+}
+
+input CommentingInfoInput {
+    gcms: String
+}
+
+input ContentViewColumnInput {
+    fieldId: ID
+    isVisible: Boolean!
+    type: ContentViewColumnType = FIELD
+    width: Int
+}
+
+input ContentViewFilterInput {
+    limit: Int
+    search: String
+    skip: Int
+    """
+
+    Only include content views when the current viewer has access to the content of the connected model
+    Conditional access is treated as having access. This does only work on UseViewer (PATs are not supported).
+    This filter checks for READ access on the DRAFT stage only.
+    """
+    viewerHasContentPermissions: Boolean! = false
+}
+
+input CreateAppExchangeTokenInput {
+    appApiId: String!
+    environment: ID!
+}
+
+input CreateAppInstallationInput {
+    appApiId: String!
+    config: JSON!
+    environment: ID!
+    status: AppInstallationStatus
+}
+
+input CreateComponentFieldInput {
+    apiId: String!
+    component: ID!
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfigInput
+    isList: Boolean!
+    isRequired: Boolean!
+    isSystem: Boolean
+    meta: JSON
+    "This can be a model or component id"
+    parentId: ID!
+    position: Int
+    tableConfig: FieldConfigInput
+    visibility: VisibilityTypes! = READ_WRITE
+}
+
+input CreateComponentInput {
+    apiId: String!
+    apiIdPlural: String!
+    description: String
+    displayName: String!
+    environmentId: ID!
+    isSystem: Boolean
+}
+
+input CreateComponentUnionFieldInput {
+    apiId: String!
+    components: [ID!]!
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfigInput
+    isList: Boolean!
+    isSystem: Boolean
+    meta: JSON
+    "This can be a model or component id"
+    parentId: ID!
+    position: Int
+    tableConfig: FieldConfigInput
+    visibility: VisibilityTypes! = READ_WRITE
+}
+
+"""
+
+CreateContentPermissionTargetInput describes the target of a Create<Action>ContentPermissionInput
+Depending on the kind you need to pass different ids:
+- ROLE: roleId & environmentId
+- PAT: patId
+- PUBLIC: environmentId
+"""
+input CreateContentPermissionTargetInput {
+    environmentId: ID
+    kind: ContentPermissionTargetKind!
+    patId: ID
+    roleId: ID
+}
+
+input CreateContentViewInput {
+    columns: [ContentViewColumnInput!]!
+    description: String
+    filters: JSON
+    modelId: ID!
+    name: String!
+    orderBy: OrderByInput
+    viewGroupId: ID
+}
+
+input CreateCreateContentPermissionInput {
+    enabled: Boolean = true
+    locales: [ID!]
+    model: CreateCreateContentPermissionModelInput
+    target: CreateContentPermissionTargetInput!
+}
+
+input CreateCreateContentPermissionModelInput {
+    condition: String
+    id: ID!
+}
+
+input CreateCustomSidebarElementInput {
+    appElementId: ID
+    appInstallationId: ID
+    config: JSON
+    description: String
+    displayName: String!
+    extensionId: ID
+    modelId: ID!
+}
+
+input CreateDeleteContentPermissionInput {
+    enabled: Boolean = true
+    locales: [ID!]
+    model: CreateDeleteContentPermissionModelInput
+    target: CreateContentPermissionTargetInput!
+}
+
+input CreateDeleteContentPermissionModelInput {
+    condition: String
+    id: ID!
+}
+
+input CreateEnumerableFieldInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    enumerationId: ID!
+    extensions: JSON
+    formConfig: FieldConfigInput
+    initialValue: String
+    isHidden: Boolean
+    isList: Boolean!
+    isLocalized: Boolean
+    isRequired: Boolean!
+    isSystem: Boolean
+    isTitle: Boolean
+    isUnique: Boolean!
+    meta: JSON
+    migrationValue: String
+    modelId: ID
+    """
+
+    This can be a model or component id, modelId must be empty when parentId is used
+    either modelId or parentId needs to be set and is required via validation, it will be made required.
+    """
+    parentId: ID
+    position: Int
+    tableConfig: FieldConfigInput
+    type: EnumerableFieldType!
+    visibility: VisibilityTypes
+}
+
+input CreateEnumerationInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    environmentId: ID!
+    isSystem: Boolean
+    values: [EnumerationValueCreateInput!]!
+}
+
+input CreateEnvironmentInput {
+    description: String
+    displayName: String!
+    """
+
+    Specify which environment to use
+    as origin
+    """
+    fromEnvironment: ID!
+    """
+
+    This will be used in your
+    API endpoint and has to be
+    an all-lowercase alphanumeric
+    string between 1 and 16 characters
+    """
+    name: String!
+    """
+
+    Setting this to false allows the environment to be created without the assets
+    of the origin environment.
+    This option is true by default.
+    """
+    withAssets: Boolean = true
+    """
+
+    Allows to create environment
+    with content of origin environment
+    """
+    withContent: Boolean
+    """
+
+    Allows to create environment
+    with webhooks of the origin environment.
+    By default cloned environments will get the same webhooks that will be initially deactivated.
+    """
+    withWebhooks: Boolean! = true
+}
+
+input CreateFieldExtensionInput {
+    apiId: String!
+    config: JSON!
+    description: String
+    environmentId: ID!
+    fieldType: ExtensionFieldType!
+    hasFormRenderer: Boolean!
+    hasListRenderer: Boolean!
+    hasTableRenderer: Boolean!
+    isActive: Boolean!
+    meta: JSON
+    name: String
+    neededPermissions: [ID!]
+    src: String!
+    srcTypeId: ID!
+}
+
+input CreateFieldInputArgInput {
+    apiId: String!
+    isList: Boolean!
+    isRequired: Boolean!
+    remoteTypeId: ID!
+}
+
+input CreateGatsbyCloudIntegrationInput {
+    "URL to trigger a Deploy Build."
+    buildWebhookURL: String!
+    description: String
+    displayName: String
+    environmentId: ID!
+    "URL to trigger a CMS Preview build."
+    previewWebhookURL: String!
+    """
+
+    Prefix of your site
+    Only lower case alphabetical characters, numbers and underscores are allowed.
+    """
+    sitePrefix: String!
+}
+
+input CreateGraphQLRemoteSourceInput {
+    debugEnabled: Boolean
+    description: String
+    displayName: String!
+    environmentId: ID!
+    headers: JSON
+    "HTTP headers that will be used for introspection"
+    introspectionHeaders: JSON
+    "HTTP method that will be used for introspection"
+    introspectionMethod: GraphQLRemoteSourceIntrospectionMethod!
+    """
+
+    Specific URL that will be used for introspection if the introspection is available on another url than the regular url.
+    Can be ignored if the introspection url is the same as the url of the remote source.
+    """
+    introspectionUrl: String
+    kind: RemoteSourceKind!
+    "Oauth input that can be used to get access token for the remote source"
+    oAuth: RemoteSourceOAuthInput
+    "Unique prefix that will be prepended to all of the remote types. This value cannot be changed!"
+    prefix: String!
+    "Custom GraphQL input types that can be used as arguments in remote fields that belong to this remoteSource"
+    remoteTypeDefinitions: [CreateRemoteTypeDefinitionInput!]
+    url: String!
+}
+
+input CreateLocaleInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    environmentId: ID!
+}
+
+input CreateMemberFieldInput {
+    apiId: String
+    description: String
+    displayName: String
+    extensions: JSON
+    formConfig: FieldConfigInput
+    isHidden: Boolean = false
+    meta: JSON
+    "ID of member model to add"
+    modelId: ID!
+    tableConfig: FieldConfigInput
+    visibility: VisibilityTypes = READ_WRITE
+}
+
+input CreateModelInput {
+    apiId: String!
+    apiIdPlural: String!
+    description: String
+    displayName: String!
+    environmentId: ID!
+    isSystem: Boolean
+}
+
+input CreateNetlifyIntegrationInput {
+    """
+
+    This token is used to create the needed BuildHook and BuildNotifications in Netlify.
+    This token is only used once and won't be stored anywhere
+    """
+    accessToken: String!
+    description: String
+    displayName: String
+    environmentId: ID!
+    """
+
+    A selection of models where the integration should be displayed in the frontend.
+    If the integration should be displayed on every model, pass null or an empty array here.
+    """
+    models: [ID!]
+    sites: [NetlifySiteInput!]!
+}
+
+input CreatePermanentAuthTokenInput {
+    defaults: PermanentAuthTokenDefaultsInput
+    description: String
+    environmentId: ID!
+    managementPermissionIds: [ID!]
+    name: String!
+}
+
+"create project from a template"
+input CreateProjectTemplateInput {
+    "Set to false to not include content"
+    content: Boolean! = true
+    "id of template (if it's marked as template) or id of a project you are an owner of"
+    templateId: ID!
+    "Set to true to include webhooks. If webhooks are included, they will be disabled initially in the created project."
+    webhooks: Boolean! = false
+}
+
+input CreatePublishContentPermissionInput {
+    enabled: Boolean = true
+    fromStages: [ID!]
+    locales: [ID!]
+    model: CreatePublishContentPermissionModelInput
+    target: CreateContentPermissionTargetInput!
+    toStages: [ID!]
+}
+
+input CreatePublishContentPermissionModelInput {
+    condition: String
+    id: ID!
+}
+
+input CreateRESTRemoteSourceInput {
+    debugEnabled: Boolean
+    description: String
+    displayName: String!
+    environmentId: ID!
+    headers: JSON
+    kind: RemoteSourceKind!
+    "Oauth input that can be used to get access token for the remote source"
+    oAuth: RemoteSourceOAuthInput
+    "Unique prefix that will be prepended to all of the remote types. This value cannot be changed!"
+    prefix: String!
+    "Remote type definitions that the remote source supports or input types that can be used by any remote field of this remote source"
+    remoteTypeDefinitions: [CreateRemoteTypeDefinitionInput!]
+    url: String!
+}
+
+input CreateReadContentPermissionInput {
+    enabled: Boolean = true
+    locales: [ID!]
+    model: CreateReadContentPermissionModelInput
+    stages: [ID!]
+    target: CreateContentPermissionTargetInput!
+}
+
+input CreateReadContentPermissionModelInput {
+    condition: String
+    id: ID!
+}
+
+input CreateReadVersionContentPermissionInput {
+    enabled: Boolean = true
+    modelId: ID
+    target: CreateContentPermissionTargetInput!
+}
+
+input CreateRelationalFieldInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfigInput
+    isHidden: Boolean = false
+    isList: Boolean!
+    """
+
+    Marks the field as required.
+    Note: This is only supported for RelationFieldType ASSET!
+    """
+    isRequired: Boolean
+    isSystem: Boolean
+    meta: JSON
+    modelId: ID
+    """
+
+    This can be a model or component id, modelId must be empty when parentId is used
+    either modelId or parentId needs to be set and is required via validation, it will be made required.
+    """
+    parentId: ID
+    position: Int
+    relationApiId: String
+    reverseSide: CreateReverseRelationSide!
+    tableConfig: FieldConfigInput
+    type: RelationalFieldType!
+    visibility: VisibilityTypes = READ_WRITE
+}
+
+input CreateRemoteFieldInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfigInput
+    inputArgs: [CreateFieldInputArgInput!]
+    isHidden: Boolean
+    isList: Boolean!
+    isRequired: Boolean!
+    isSystem: Boolean
+    meta: JSON
+    modelId: ID
+    """
+
+    This can be a model or component id, modelId must be empty when parentId is used
+    either modelId or parentId needs to be set and is required via validation, it will be made required.
+    """
+    parentId: ID
+    position: Int
+    remoteConfig: RemoteFieldConfigInput!
+    tableConfig: FieldConfigInput
+    type: RemoteFieldType!
+    visibility: VisibilityTypes
+}
+
+input CreateRemoteTypeDefinitionInput {
+    sdl: String!
+}
+
+input CreateReverseField {
+    apiId: String!
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfigInput
+    isHidden: Boolean
+    isList: Boolean!
+    meta: JSON
+    tableConfig: FieldConfigInput
+    visibility: VisibilityTypes
+}
+
+input CreateReverseRelationSide {
+    field: CreateReverseField
+    modelId: ID!
+}
+
+input CreateRoleInput {
+    description: String
+    managementPermissionIds: [ID!]
+    name: String!
+    projectId: ID!
+}
+
+input CreateSidebarExtensionInput {
+    apiId: String!
+    config: JSON!
+    description: String
+    environmentId: ID!
+    isActive: Boolean!
+    meta: JSON
+    name: String
+    neededPermissions: [ID!]
+    src: String!
+    srcTypeId: ID!
+}
+
+input CreateSimpleFieldInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    embeddableModels: [ID!]
+    embedsEnabled: Boolean
+    extensions: JSON
+    formConfig: FieldConfigInput
+    initialValue: String
+    isHidden: Boolean
+    isList: Boolean!
+    isLocalized: Boolean!
+    isRequired: Boolean!
+    isSystem: Boolean
+    isTitle: Boolean
+    isUnique: Boolean!
+    meta: JSON
+    migrationValue: String
+    modelId: ID
+    """
+
+    This can be a model or component id, modelId must be empty when parentId is used
+    either modelId or parentId needs to be set and is required via validation, it will be made required.
+    """
+    parentId: ID
+    position: Int
+    tableConfig: FieldConfigInput
+    type: SimpleFieldType!
+    validations: SimpleFieldValidationsInput
+    visibility: VisibilityTypes
+}
+
+input CreateStageInput {
+    """
+
+    Identifier to be used in
+    Content API Schema
+    """
+    apiId: String!
+    "Color that will be used in the webapp"
+    colorPaletteId: ColorPalette!
+    description: String
+    displayName: String!
+    environmentId: ID!
+    position: Int
+}
+
+input CreateSystemSidebarElementInput {
+    config: JSON
+    modelId: ID!
+    type: SystemSidebarElementType!
+}
+
+input CreateUnionFieldInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    extensions: JSON
+    formConfig: FieldConfigInput
+    isHidden: Boolean = false
+    isList: Boolean!
+    isSystem: Boolean
+    meta: JSON
+    modelId: ID
+    """
+
+    This can be a model or component id, modelId must be empty when parentId is used
+    either modelId or parentId needs to be set and is required via validation, it will be made required.
+    """
+    parentId: ID
+    position: Int
+    reverseSide: CreateReverseField
+    tableConfig: FieldConfigInput
+    type: UnionFieldType!
+    union: CreateUnionInput!
+    visibility: VisibilityTypes = READ_WRITE
+}
+
+input CreateUnionInput {
+    apiId: String!
+    description: String
+    displayName: String!
+    "IDs of models to add to union"
+    modelIds: [ID!]!
+}
+
+input CreateUnpublishContentPermissionInput {
+    enabled: Boolean = true
+    locales: [ID!]
+    model: CreateUnpublishContentPermissionModelInput
+    stages: [ID!]
+    target: CreateContentPermissionTargetInput!
+}
+
+input CreateUnpublishContentPermissionModelInput {
+    condition: String
+    id: ID!
+}
+
+input CreateUpdateContentPermissionInput {
+    enabled: Boolean = true
+    locales: [ID!]
+    model: CreateUpdateContentPermissionModelInput
+    target: CreateContentPermissionTargetInput!
+}
+
+input CreateUpdateContentPermissionModelInput {
+    condition: String
+    id: ID!
+}
+
+input CreateUserInput {
+    gcms: String
+}
+
+input CreateViewGroupInput {
+    description: String
+    environmentId: ID!
+    name: String!
+    type: ViewGroupContentType
+}
+
+input CreateWebhookInput {
+    description: String
+    environmentId: ID!
+    headers: JSON
+    includePayload: Boolean!
+    isActive: Boolean!
+    isSystem: Boolean
+    method: WebhookMethod = POST
+    """
+
+    Pass an empty array for all existing models.
+    This will also setup the webhook for models
+    created in the future
+    """
+    models: [ID!]!
+    name: String!
+    secretKey: String
+    """
+
+    Pass an empty array for all existing stages.
+    This will also setup the webhook for stages
+    created in the future
+    """
+    stages: [ID!]!
+    triggerActions: [WebhookTriggerAction!]!
+    triggerSources: [WebhookTriggerSource!]
+    triggerType: WebhookTriggerType!
+    url: String!
+}
+
+input DeleteAppInstallationInput {
+    appInstallationId: ID!
+}
+
+input DeleteComponentInput {
+    id: ID!
+}
+
+input DeleteContentPermissionInput {
+    permissionId: ID!
+}
+
+input DeleteContentViewInput {
+    id: ID!
+}
+
+input DeleteEnumerationInput {
+    id: ID!
+}
+
+input DeleteEnvironmentInput {
+    id: ID!
+}
+
+input DeleteExtensionInput {
+    extensionId: ID!
+}
+
+input DeleteFieldInput {
+    id: ID!
+}
+
+input DeleteGatsbyCloudIntegrationInput {
+    id: ID!
+}
+
+input DeleteLocaleInput {
+    """
+
+    Delete all localizations for this locale.
+    This will prevent an exception from
+    being raised if documents were previously
+    localized in this locale
+    """
+    force: Boolean
+    "ID of Locale to delete"
+    id: ID!
+}
+
+input DeleteModelInput {
+    id: ID!
+}
+
+input DeleteNetlifyIntegrationInput {
+    """
+
+    This token is used to cleanup the resources in Netlify that where used by this integration .
+    This token is only used once and won't be stored anywhere
+    """
+    accessToken: String!
+    id: ID!
+}
+
+input DeletePermanentAuthTokenInput {
+    id: ID!
+}
+
+input DeleteProjectInput {
+    id: ID!
+}
+
+input DeleteRemoteSourceInput {
+    id: ID!
+}
+
+input DeleteRoleInput {
+    id: ID!
+}
+
+input DeleteSidebarElementInput {
+    sidebarElementId: ID!
+}
+
+input DeleteStageInput {
+    """
+
+    Delete all documents in stage.
+    This will prevent an exception from
+    being raised if documents were previously
+    published to this stage
+    """
+    force: Boolean
+    "ID of Stage to delete"
+    id: ID!
+}
+
+input DeleteViewGroupInput {
+    id: ID!
+}
+
+input DeleteWebhookInput {
+    webhookId: ID!
+}
+
+input DuplicateComponentInput {
+    apiId: String!
+    apiIdPlural: String!
+    componentId: ID!
+    description: String
+    displayName: String!
+}
+
+input DuplicateModelInput {
+    apiId: String!
+    apiIdPlural: String!
+    description: String
+    displayName: String!
+    modelId: ID!
+}
+
+input EmbeddableModelsInput {
+    modelsToAdd: [ID!]
+    modelsToRemove: [ID!]
+}
+
+input EnumerationValueCreateInput {
+    apiId: String!
+    displayName: String!
+}
+
+input EnumerationValueUpdateInput {
+    "Update enumeration value API identifier"
+    apiId: String
+    displayName: String
+    id: ID!
+}
+
+"Permissions of an environment"
+input EnvironmentPermissionsInput {
+    "True if mutations on this environment are allowed"
+    allowMutations: Boolean!
+}
+
+input FieldConfigInput {
+    appElementId: ID
+    appInstallationId: ID
+    config: JSON!
+    extensionId: ID
+    renderer: String!
+}
+
+input FieldConfigUpdateInput {
+    config: JSON
+    extensionId: ID
+    renderer: String
+}
+
+input FieldValidationFloatRangeInput {
+    errorMessage: String
+    max: Float
+    min: Float
+}
+
+input FieldValidationIntRangeInput {
+    errorMessage: String
+    max: Int
+    min: Int
+}
+
+input FieldValidationRegExInput {
+    errorMessage: String
+    flags: [String!]
+    regex: String
+}
+
+input FloatFieldValidationsInput {
+    listItemCount: FieldValidationIntRangeInput
+    range: FieldValidationFloatRangeInput
+}
+
+input IntFieldValidationsInput {
+    listItemCount: FieldValidationIntRangeInput
+    range: FieldValidationIntRangeInput
+}
+
+input LeaveProjectInput {
+    id: ID!
+}
+
+input LeaveTrialInput {
+    projectId: ID!
+}
+
+input MaxComplexityInput {
+    gcms: String
+}
+
+input MoveContentViewInput {
+    id: ID!
+    position: Int!
+    viewGroupId: ID!
+}
+
+input MoveFieldInput {
+    id: ID!
+    position: Int!
+}
+
+input MoveSidebarElementInput {
+    id: ID!
+    position: Int!
+}
+
+input MoveViewGroupInput {
+    id: ID!
+    position: Int!
+}
+
+input NetlifySiteInput {
+    displayName: String!
+    id: String!
+}
+
+input OrderByInput {
+    orderByField: ID!
+    orderDir: ColumnOrderByDir!
+}
+
+input PermanentAuthTokenDefaultsInput {
+    stage: ID!
+}
+
+input PromoteEnvironmentInput {
+    environmentId: ID!
+    renameCurrentMasterApiIdTo: String!
+    renameCurrentMasterDisplayNameTo: String!
+}
+
+input RemoteFieldConfigInput {
+    cacheTTLSeconds: Int
+    "If true, headers that are sent by the client will be forwarded to the remote source"
+    forwardClientHeaders: Boolean
+    "In case of apiType GraphQL graphqlQuery contains the GraphQL query that will be sent to the remote source"
+    graphQLQuery: String
+    headers: JSON
+    method: RemoteFieldApiMethod!
+    remoteSourceId: ID!
+    "In case of apiType REST restPath contains the path that will be appended to the API base url"
+    restPath: String
+    "Remote Type definitions apiId of the type the remote field should return."
+    returnTypeApiId: String!
+}
+
+input RemoteSourceOAuthInput {
+    authorizationGrantType: OAuthGrantType!
+    authorizationUrl: String!
+    clientId: String!
+    clientSecret: String
+    scopes: [String!]
+}
+
+input RemoveMemberInput {
+    memberId: ID!
+}
+
+input ResetSidebarElementsInput {
+    modelId: ID!
+}
+
+input RestoreEnvironmentBackupInput {
+    environmentBackupId: ID!
+}
+
+input RetriggerWebhookInput {
+    logId: String!
+    webhookId: ID!
+}
+
+input RevokeInviteInput {
+    id: ID!
+}
+
+input SendFeedbackInput {
+    allowContact: Boolean
+    featureName: String
+    message: String
+    projectId: ID
+    rating: Int
+    reasons: [String!]
+    type: FeedbackType!
+}
+
+input SendInviteInput {
+    email: String!
+    origin: String
+    projectId: ID!
+    roleIds: [ID!]!
+}
+
+input SetUserAnalyticsInput {
+    conversionPage: String
+    gclid: String
+    hubspotutk: String
+    landingPage: String
+    referrer: String
+    utmCampaign: String
+    utmContent: String
+    utmMedium: String
+    utmSource: String
+    utmTerm: String
+}
+
+input SetUserPreferencesInput {
+    """
+
+    If preferences are null, then all the user preferences will be deleted.
+    You don't need to pass the whole preferences object, just the keys you want to update or add.
+    """
+    preferences: JSON
+}
+
+input SetUserSelectionInput {
+    "The id of the project you want associate the selection to."
+    projectId: ID!
+    """
+
+    The value of the selection you want to update or add.
+
+    You don't need to pass the whole object, just the keys you want to update or add.
+
+    If selection value is null, then value will be deleted.
+    """
+    selection: JSON
+}
+
+input SimpleFieldValidationsInput {
+    Float: FloatFieldValidationsInput
+    Int: IntFieldValidationsInput
+    String: StringFieldValidationsInput
+}
+
+input StartTrialInput {
+    planId: ID!
+    projectId: ID!
+}
+
+input StringFieldValidationsInput {
+    characters: FieldValidationIntRangeInput
+    listItemCount: FieldValidationIntRangeInput
+    matches: FieldValidationRegExInput
+    notMatches: FieldValidationRegExInput
+}
+
+input SwitchPaymentSubscriptionInput {
+    planName: String!
+    subscriptionId: ID!
+}
+
+input TechnologyStackInput {
+    image: String!
+    title: String!
+    url: String
+}
+
+input TemplateResourceInput {
+    title: String!
+    url: String!
+}
+
+input TrackInput {
+    event: TrackEvent!
+    meta: String
+    projectId: ID!
+}
+
+input TriggerNetlifyIntegrationBuildInput {
+    integrationId: ID!
+    siteId: String!
+}
+
+input UpdateAppInstallationInput {
+    appInstallationId: ID!
+    config: JSON!
+    status: AppInstallationStatus
+}
+
+input UpdateComponentFieldInput {
+    apiId: String
+    description: String
+    displayName: String
+    extensions: JSON
+    formConfig: FieldConfigInput
+    id: ID!
+    isList: Boolean
+    isRequired: Boolean
+    meta: JSON
+    tableConfig: FieldConfigInput
+    visibility: VisibilityTypes
+}
+
+input UpdateComponentInput {
+    """
+
+    Rename singular API ID to
+    specified value
+    """
+    apiId: String
+    """
+
+    Rename plural API ID to
+    specified value
+    """
+    apiIdPlural: String
+    description: String
+    displayName: String
+    id: ID!
+    isSystem: Boolean
+}
+
+input UpdateComponentUnionFieldInput {
+    apiId: String
+    components: [ID!]
+    description: String
+    displayName: String
+    extensions: JSON
+    formConfig: FieldConfigInput
+    id: ID!
+    meta: JSON
+    tableConfig: FieldConfigInput
+    visibility: VisibilityTypes
+}
+
+input UpdateContentPermissionEnabledInput {
+    enabled: Boolean!
+    permissionId: ID!
+}
+
+input UpdateContentViewInput {
+    columns: [ContentViewColumnInput!]!
+    description: String
+    filters: JSON
+    id: ID!
+    name: String
+    orderBy: OrderByInput
+    viewGroupId: ID
+}
+
+input UpdateCreateContentPermissionInput {
+    locales: [ID!]
+    model: CreateCreateContentPermissionModelInput
+    permissionId: ID!
+}
+
+input UpdateDeleteContentPermissionInput {
+    locales: [ID!]
+    model: CreateUpdateContentPermissionModelInput
+    permissionId: ID!
+}
+
+input UpdateEnumerableFieldInput {
+    apiId: String
+    description: String
+    displayName: String
+    extensions: JSON
+    formConfig: FieldConfigInput
+    id: ID!
+    initialValue: String
+    isHidden: Boolean
+    isList: Boolean
+    isLocalized: Boolean
+    isRequired: Boolean
+    isSystem: Boolean
+    isTitle: Boolean
+    isUnique: Boolean
+    meta: JSON
+    migrationValue: String
+    tableConfig: FieldConfigInput
+    visibility: VisibilityTypes
+}
+
+input UpdateEnumerationInput {
+    """
+
+    New Api identifier to use,
+    will impact Content API
+    """
+    apiId: String
+    description: String
+    displayName: String
+    id: ID!
+    isSystem: Boolean
+    "List of values to create"
+    valuesToCreate: [EnumerationValueCreateInput!]
+    "List of value IDs to delete"
+    valuesToDelete: [ID!]
+    "List of existing values to update"
+    valuesToUpdate: [EnumerationValueUpdateInput!]
+}
+
+input UpdateEnvironmentInput {
+    "Update the environment description"
+    description: String
+    "Update the environment display name"
+    displayName: String
+    "ID of environment to update"
+    id: ID!
+}
+
+input UpdateFieldExtensionInput {
+    apiId: String!
+    config: JSON
+    description: String
+    extensionId: ID!
+    fieldType: ExtensionFieldType
+    hasFormRenderer: Boolean
+    hasListRenderer: Boolean
+    hasTableRenderer: Boolean
+    isActive: Boolean
+    meta: JSON
+    name: String
+    neededPermissions: [AvailableExtensionPermissionAction!]
+    src: String
+    srcTypeId: ID
+}
+
+input UpdateFilestackSecurityOptionsInput {
+    enabled: Boolean
+    environmentId: ID!
+    globalExpires: String
+    stageOverrides: [UpdateStageFilestackSecurityOptionsInput!]
+}
+
+input UpdateGatsbyCloudIntegrationInput {
+    "URL to trigger a Deploy Build. This webhook will be triggered when publishing and unpublishing entries."
+    buildWebhookURL: String
+    description: String
+    displayName: String
+    integrationId: ID!
+    previewWebhookURL: String
+    """
+
+    Prefix of your site
+    Only lower case alphabetical characters, numbers and underscores are allowed.
+    """
+    sitePrefix: String
+}
+
+input UpdateGraphQLRemoteSourceInput {
+    debugEnabled: Boolean
+    description: String
+    displayName: String
+    headers: JSON
+    id: ID!
+    introspectionHeaders: JSON
+    introspectionMethod: GraphQLRemoteSourceIntrospectionMethod
+    introspectionUrl: String
+    kind: RemoteSourceKind
+    "Oauth input that can be used to get access token for the remote source"
+    oAuth: RemoteSourceOAuthInput
+    remoteTypeDefinitionsToUpsert: UpsertRemoteTypeDefinitionsInput
+    url: String
+}
+
+input UpdateLocaleInput {
+    """
+
+    Rename Locale apiId,
+    will impact the Content API
+    """
+    apiId: String
+    "Update locale description"
+    description: String
+    """
+
+    Update the Locale's
+    display name
+    """
+    displayName: String
+    "ID of locale to update"
+    id: ID!
+    """
+
+    Mark locale as default,
+    will impact the Content API
+    """
+    isDefault: Boolean
+}
+
+input UpdateMemberRolesInput {
+    memberId: ID!
+    roleIds: [ID!]!
+}
+
+input UpdateModelInput {
+    """
+
+    Rename singular API ID to
+    specified value
+    """
+    apiId: String
+    """
+
+    Rename plural API ID to
+    specified value
+    """
+    apiIdPlural: String
+    description: String
+    displayName: String
+    id: ID!
+    isSystem: Boolean
+}
+
+input UpdateNetlifyIntegrationInput {
+    """
+
+    This token is used to create the needed BuildHook and BuildNotifications in Netlify.
+    This token is only used once and won't be stored anywhere
+    """
+    accessToken: String!
+    description: String
+    displayName: String
+    integrationId: ID!
+    models: [ID!]
+    "Overrides the currently setup netlify sites. Omit if you don't want to update the existing sites."
+    sites: [NetlifySiteInput!]
+}
+
+input UpdatePermanentAuthTokenInput {
+    defaults: PermanentAuthTokenDefaultsInput
+    description: String
+    id: ID!
+    managementPermissionIds: [ID!]
+    name: String
+}
+
+input UpdateProjectInput {
+    description: String
+    id: ID!
+    name: String
+    opensInClassic: Boolean
+    picture: String
+    publicCloneAccess: UpdatePublicCloneAccessInput
+}
+
+input UpdatePublicCloneAccessInput {
+    enabled: Boolean!
+    includeContent: Boolean!
+    includeWebhooks: Boolean!
+}
+
+input UpdatePublicEndpointDefaultsInput {
+    stage: ID!
+}
+
+input UpdatePublicEndpointInput {
+    defaults: UpdatePublicEndpointDefaultsInput
+    environmentId: ID!
+}
+
+input UpdatePublicPermissionInput {
+    allowMutations: Boolean!
+    allowQueriesOnStages: [ID!]!
+}
+
+input UpdatePublishContentPermissionInput {
+    fromStages: [ID!]
+    locales: [ID!]
+    model: CreatePublishContentPermissionModelInput
+    permissionId: ID!
+    toStages: [ID!]
+}
+
+input UpdatePublishContentPermissionModelInput {
+    condition: String
+    id: ID!
+}
+
+input UpdateRESTRemoteSourceInput {
+    debugEnabled: Boolean
+    description: String
+    displayName: String
+    headers: JSON
+    id: ID!
+    kind: RemoteSourceKind
+    "Oauth input that can be used to get access token for the remote source"
+    oAuth: RemoteSourceOAuthInput
+    remoteTypeDefinitionsToUpsert: UpsertRemoteTypeDefinitionsInput
+    url: String
+}
+
+input UpdateReadContentPermissionInput {
+    locales: [ID!]
+    model: CreateReadContentPermissionModelInput
+    permissionId: ID!
+    stages: [ID!]
+}
+
+input UpdateReadVersionContentPermissionInput {
+    modelId: ID
+    permissionId: ID!
+}
+
+input UpdateRelationalFieldInput {
+    apiId: String
+    description: String
+    displayName: String
+    extensions: JSON
+    formConfig: FieldConfigInput
+    id: ID!
+    isHidden: Boolean
+    isList: Boolean
+    """
+
+    Marks the field as required.
+    Note: This is only supported for RelationFieldType ASSET!
+    """
+    isRequired: Boolean
+    isSystem: Boolean
+    isUnidirectional: Boolean
+    meta: JSON
+    tableConfig: FieldConfigInput
+    visibility: VisibilityTypes
+}
+
+input UpdateRemoteFieldConfigInput {
+    cacheTTLSeconds: Int
+    forwardClientHeaders: Boolean
+    "In case of apiType GraphQL graphqlQuery contains the GraphQL query that will be sent to the remote source"
+    graphQLQuery: String
+    headers: JSON
+    method: RemoteFieldApiMethod
+    remoteSourceId: ID
+    "In case of apiType REST restPath contains the path that will be appended to the base url of the api"
+    restPath: String
+    "Remote Type definitions apiId of the type the remote field should return."
+    returnTypeApiId: String
+}
+
+input UpdateRemoteFieldInput {
+    apiId: String
+    description: String
+    displayName: String
+    extensions: JSON
+    formConfig: FieldConfigInput
+    id: ID!
+    inputArgs: UpsertFieldInputArgInput
+    isList: Boolean
+    isRequired: Boolean
+    meta: JSON
+    remoteConfig: UpdateRemoteFieldConfigInput
+    tableConfig: FieldConfigInput
+    visibility: VisibilityTypes
+}
+
+input UpdateRoleInput {
+    description: String
+    id: ID!
+    managementPermissionIds: [ID!]
+    name: String
+}
+
+input UpdateSidebarElementInput {
+    config: JSON
+    description: String
+    displayName: String
+    id: ID!
+}
+
+input UpdateSidebarExtensionInput {
+    apiId: String!
+    config: JSON
+    description: String
+    extensionId: ID!
+    isActive: Boolean
+    meta: JSON
+    name: String
+    neededPermissions: [AvailableExtensionPermissionAction!]
+    src: String
+    srcTypeId: ID
+}
+
+input UpdateSimpleFieldInput {
+    apiId: String
+    description: String
+    displayName: String
+    embeddableModels: EmbeddableModelsInput
+    embedsEnabled: Boolean
+    extensions: JSON
+    formConfig: FieldConfigInput
+    id: ID!
+    initialValue: String
+    isHidden: Boolean
+    isList: Boolean
+    isLocalized: Boolean
+    isRequired: Boolean
+    isSystem: Boolean
+    isTitle: Boolean
+    isUnique: Boolean
+    meta: JSON
+    migrationValue: String
+    tableConfig: FieldConfigInput
+    validations: SimpleFieldValidationsInput
+    visibility: VisibilityTypes
+}
+
+input UpdateStageFilestackSecurityOptionsInput {
+    expires: String!
+    stageId: ID!
+}
+
+input UpdateStageInput {
+    """
+
+    Rename Stage apiId,
+    will impact the Content API
+    """
+    apiId: String
+    "Color that will be used in the webapp"
+    colorPaletteId: ColorPalette
+    "Update stage description"
+    description: String
+    """
+
+    Update the Stage
+    display name
+    """
+    displayName: String
+    "ID of stage to update"
+    id: ID!
+    position: Int
+}
+
+input UpdateUnionFieldInput {
+    apiId: String
+    description: String
+    displayName: String
+    extensions: JSON
+    formConfig: FieldConfigInput
+    id: ID!
+    isHidden: Boolean
+    isSystem: Boolean
+    meta: JSON
+    tableConfig: FieldConfigInput
+    union: UpdateUnionInput
+    visibility: VisibilityTypes
+}
+
+input UpdateUnionInput {
+    apiId: String
+    description: String
+    displayName: String
+    "Models and member fields to add"
+    membersToAdd: [CreateMemberFieldInput!]
+    "Models to remove from union (accepts Model ID)"
+    membersToRemove: [ID!]
+}
+
+input UpdateUnpublishContentPermissionInput {
+    locales: [ID!]
+    model: UpdateUnpublishContentPermissionModelInput
+    permissionId: ID!
+    stages: [ID!]
+}
+
+input UpdateUnpublishContentPermissionModelInput {
+    condition: String
+    id: ID!
+}
+
+input UpdateUpdateContentPermissionInput {
+    locales: [ID!]
+    model: CreateUpdateContentPermissionModelInput
+    permissionId: ID!
+}
+
+input UpdateViewGroupInput {
+    description: String
+    id: ID!
+    name: String
+}
+
+input UpdateWebhookInput {
+    description: String
+    headers: JSON
+    includePayload: Boolean
+    isActive: Boolean
+    isSystem: Boolean
+    method: WebhookMethod
+    models: [ID!]
+    name: String
+    secretKey: String
+    stages: [ID!]
+    triggerActions: [WebhookTriggerAction!]
+    triggerSources: [WebhookTriggerSource!]
+    triggerType: WebhookTriggerType
+    url: String
+    webhookId: ID!
+}
+
+input UpgradeEnvironmentAssetInput {
+    environmentId: ID!
+}
+
+input UpsertFieldInputArgInput {
+    fieldInputArgsToCreate: [UpsertFieldInputArgInputToCreateInput!]
+    fieldInputArgsToDelete: [UpsertFieldInputArgInputToDeleteInput!]
+    fieldInputArgsToUpdate: [UpsertFieldInputArgInputToUpdateInput!]
+}
+
+input UpsertFieldInputArgInputToCreateInput {
+    apiId: String!
+    isList: Boolean!
+    isRequired: Boolean!
+    remoteTypeId: ID!
+}
+
+input UpsertFieldInputArgInputToDeleteInput {
+    inputArgId: ID!
+}
+
+input UpsertFieldInputArgInputToUpdateInput {
+    apiId: String
+    inputArgId: ID!
+    isList: Boolean
+    isRequired: Boolean
+    remoteTypeId: ID
+}
+
+input UpsertRemoteTypeDefinitionToCreateInput {
+    sdl: String!
+}
+
+input UpsertRemoteTypeDefinitionToDeleteInput {
+    id: ID!
+}
+
+input UpsertRemoteTypeDefinitionToUpdateInput {
+    id: ID!
+    sdl: String
+}
+
+input UpsertRemoteTypeDefinitionsInput {
+    remoteTypeDefinitionsToCreate: [UpsertRemoteTypeDefinitionToCreateInput!]
+    remoteTypeDefinitionsToDelete: [UpsertRemoteTypeDefinitionToDeleteInput!]
+    remoteTypeDefinitionsToUpdate: [UpsertRemoteTypeDefinitionToUpdateInput!]
+}
+
+input UpsertTemplateInput {
+    gcms: String
+}
+
+input WebhookLogsWhereInput {
+    action_eq: WebhookTriggerAction
+    modelId_eq: ID
+    status_eq: Int
+    status_gt: Int
+    status_gte: Int
+    status_in: [Int]
+    status_lt: Int
+    status_lte: Int
+}
+
+input _AddMemberInput {
+    gcms: String
+}
+
+input _AddStageToContentViewsInput {
+    gcms: String
+}
+
+input _BookOverLimitInput {
+    gcms: String
+}
+
+input _CloneProjectOptionsInput {
+    gcms: String
+}
+
+input _DeleteProjectInput {
+    gcms: String
+}
+
+input _HideNonRequiredFieldsInDefaultContentViewInput {
+    gcms: String
+}
+
+input _ResetContentConfigInput {
+    gcms: String
+}
+
+input _UpdatePlanTrialInput {
+    gcms: String
+}

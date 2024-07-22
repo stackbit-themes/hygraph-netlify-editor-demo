@@ -3,15 +3,16 @@ import ComponentRenderer from "@/components/ComponentRenderer";
 
 interface Props {
   __typename: string;
+  index: number;
   image: {
     url: string;
   };
   components: any;
 }
 
-export default function Editorial({ image, components }: Props) {
+export default function Editorial({ image, components, index }: Props) {
   return (
-    <section className="flex flex-col lg:flex-row bg-light justify-between p-8 lg:p-12">
+    <section className="flex flex-col lg:flex-row bg-light justify-between p-8 lg:p-12" data-sb-field-path={`.${index}`}>
       <div className="flex flex-col items-stretch w-full lg:w-2/4">
         <ComponentRenderer data={components} />
       </div>

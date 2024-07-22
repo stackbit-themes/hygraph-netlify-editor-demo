@@ -46,10 +46,10 @@ export default async function Home({
     isEnabled ? "DRAFT" : "PUBLISHED"
   );
   return (
-    <main className="max-w-screen-2xl mx-auto">
+    <main className="max-w-screen-2xl mx-auto" data-sb-object-id={pdp?.id}>
       <ProductDetail product={pdp?.product} />
 
-      <section className="mb-12">
+      <section className="mb-12" data-sb-field-path=".components">
         <ComponentRenderer data={pdp?.components} />
       </section>
     </main>

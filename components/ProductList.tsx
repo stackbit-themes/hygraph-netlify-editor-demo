@@ -2,6 +2,7 @@ import Card from "./Card";
 
 interface Props {
   __typename: string;
+  index: number;
   title: string;
   relatedProductList: {
     relatedProducts: {
@@ -21,6 +22,7 @@ interface Props {
 
 export default function ProductList({
   __typename,
+  index,
   title,
   relatedProductList,
 }: Props) {
@@ -38,7 +40,7 @@ export default function ProductList({
   );
 
   return (
-    <section className="bg-tertiary">
+    <section className="bg-tertiary" data-sb-field-path={`.${index}`}>
       {title ? (
         <h3 className="text-5xl pt-12 mb-12 font-bold font-title text-center">
           {title}

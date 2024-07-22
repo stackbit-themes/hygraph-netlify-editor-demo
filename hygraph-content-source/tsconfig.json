@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "es2020",
+        "lib": ["es2020"],
+        "module": "node16",
+        "moduleResolution": "node16",
+        "allowJs": true,
+        "checkJs": false,
+        "noUncheckedIndexedAccess": true,
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        "incremental": true
+    },
+    "include": ["**/*.ts"],
+    "exclude": ["codegen.ts"]
+}

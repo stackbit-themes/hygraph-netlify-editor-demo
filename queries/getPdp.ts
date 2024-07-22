@@ -83,13 +83,16 @@ const query = graphql(`
 `);
 
 export async function getPdp(slug: string, stage: "PUBLISHED" | "DRAFT") {
+  if (process.env.NODE_ENV === 'development') {
+    stage = 'DRAFT';
+  }
   const variables = {
     slug: slug || "face-serum",
     stage: stage as Stage || "PUBLISHED" as Stage
   };
 
   const data = await request(
-    process.env.NEXT_HYGRAPH_ENDPOINT as string,
+    process.env.HYGRAPH_ENDPOINT as string,
     query,
     variables
   );

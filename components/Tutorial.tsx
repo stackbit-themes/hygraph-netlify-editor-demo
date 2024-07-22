@@ -3,6 +3,7 @@ import ComponentRenderer from "@/components/ComponentRenderer";
 
 interface Props {
   __typename: string;
+  index: number;
   title: string;
   image: {
     url: string;
@@ -23,7 +24,7 @@ type TutorialItem = {
   index: number;
 };
 
-export default function Tutorial({ title, image, items }: Props) {
+export default function Tutorial({ title, image, items, index }: Props) {
   const tutorialItems: TutorialItem[] = [];
 
   items.forEach((item, index) => {
@@ -31,7 +32,7 @@ export default function Tutorial({ title, image, items }: Props) {
   });
 
   return (
-    <section className="relative">
+    <section className="relative" data-sb-field-path={`.${index}`}>
       <Image
         src={image.url}
         alt={title}
