@@ -5,7 +5,7 @@ import type { Query } from './gql-types';
 import schemaQuery from './gql-queries/schema';
 import type { ModelWithContext } from './hygraph-schema-converter';
 
-export type HygraphDocument = {
+export type HygraphEntry = {
     __typename: string;
     id: string;
     createdAt: string;
@@ -53,7 +53,7 @@ export type HygraphAsset = {
 
 export type HygraphWebhook = {
     operation: 'create' | 'update' | 'publish' | 'unpublish' | 'delete';
-    data: HygraphDocument | HygraphAsset;
+    data: HygraphEntry | HygraphAsset;
 };
 
 export type HygraphUser = {
@@ -103,7 +103,7 @@ export class HygraphApiClient {
         };
     }
 
-    async getDocuments(models: ModelWithContext[]): Promise<HygraphDocument[]> {
+    async getEntries(models: ModelWithContext[]): Promise<HygraphEntry[]> {
         const queryAst: any = { query: {} };
         const dataModels = models.filter((model) => model.type === 'data');
         const modelsByName = _.keyBy(models, 'name');
@@ -123,23 +123,23 @@ export class HygraphApiClient {
         }
         const query = convertASTToQuery(queryAst);
         try {
-            const result = (await this.contentClient.request(query)) as Record<string, HygraphDocument[]>;
+            const result = (await this.contentClient.request(query)) as Record<string, HygraphEntry[]>;
             return _.flatMap(result);
         } catch (error: any) {
-            this.logger.warn(`Error fetching documents:\n${error.toString()}\nQuery:\n${query}`);
+            this.logger.warn(`Error fetching entries:\n${error.toString()}\nQuery:\n${query}`);
             return [];
         }
     }
 
-    async getDocumentById({
-        documentId,
+    async getEntryById({
+        entryId,
         modelName,
         getModelByName
     }: {
-        documentId: string;
+        entryId: string;
         modelName: string;
         getModelByName: (modelName: string) => ModelWithContext | undefined;
-    }): Promise<HygraphDocument | undefined> {
+    }): Promise<HygraphEntry | undefined> {
         const model = getModelByName(modelName);
         if (!model) {
             return undefined;
@@ -150,7 +150,7 @@ export class HygraphApiClient {
                 [queryModelName]: {
                     __arguments: {
                         stage: 'DRAFT',
-                        where: { id: documentId }
+                        where: { id: entryId }
                     },
                     ...defaultDocumentQueryFields({
                         model,
@@ -162,30 +162,78 @@ export class HygraphApiClient {
         };
         const query = convertASTToQuery(queryAst);
         try {
-            const result = (await this.contentClient.request(query)) as Record<string, HygraphDocument>;
+            const result = (await this.contentClient.request(query)) as Record<string, HygraphEntry>;
             return result[queryModelName];
         } catch (error: any) {
-            this.logger.warn(`Error fetching document:\n${error.toString()}\nQuery:\n${query}`);
+            this.logger.warn(`Error fetching entry by id:\n${error.toString()}\nQuery:\n${query}`);
             return undefined;
         }
     }
 
-    async updateDocument({
-        documentId,
+    async createEntry({ modelName, data }: { modelName: string; data: Record<string, any> }): Promise<{ id: string }> {
+        const createModelName = `create${modelName}`;
+        const queryAst: any = {
+            mutation: {
+                [createModelName]: {
+                    __arguments: {
+                        data: data
+                    },
+                    id: 1
+                }
+            }
+        };
+        const query = convertASTToQuery(queryAst);
+        try {
+            const result = (await this.contentClient.request(query)) as Record<string, { id: string }>;
+            const entry = result[createModelName];
+            if (!entry) {
+                throw new Error(`Error creating an entry`);
+            }
+            return entry;
+        } catch (error: any) {
+            this.logger.warn(`Error creating entry:\n${error.toString()}\nQuery:\n${query}`);
+            throw new Error(`Error creating an entry ${error.message}`);
+        }
+    }
+
+    async updateEntry({
+        entryId,
         modelName,
         data
     }: {
-        documentId: string;
+        entryId: string;
         modelName: string;
-        data: any;
+        data: Record<string, any>;
     }): Promise<void> {
         const updateModelName = `update${modelName}`;
         const queryAst: any = {
             mutation: {
                 [updateModelName]: {
                     __arguments: {
-                        where: { id: documentId },
+                        where: { id: entryId },
                         data: data
+                    },
+                    id: 1
+                }
+            }
+        };
+        const query = convertASTToQuery(queryAst);
+        try {
+            this.logger.debug(`Updating entry ${entryId}:\n${query}`);
+            await this.contentClient.request(query);
+        } catch (error: any) {
+            this.logger.warn(`Error updating entry:\n${error.toString()}\nQuery:\n${query}`);
+            throw new Error(`Error updating an entry ${entryId}: ${error.message}`);
+        }
+    }
+
+    async deleteEntry({ entryId, modelName }: { entryId: string; modelName: string }): Promise<void> {
+        const deleteModelName = `delete${modelName}`;
+        const queryAst: any = {
+            mutation: {
+                [deleteModelName]: {
+                    __arguments: {
+                        where: { id: entryId }
                     },
                     id: 1
                 }
@@ -195,18 +243,18 @@ export class HygraphApiClient {
         try {
             await this.contentClient.request(query);
         } catch (error: any) {
-            this.logger.warn(`Error updating document:\n${error.toString()}\nQuery:\n${query}`);
-            return undefined;
+            this.logger.warn(`Error deleting entry:\n${error.toString()}\nQuery:\n${query}`);
+            throw new Error(`Error deleting an entry ${entryId}: ${error.message}`);
         }
     }
 
-    async publishDocument({ documentId, modelName }: { documentId: string; modelName: string }): Promise<void> {
+    async publishEntry({ entryId, modelName }: { entryId: string; modelName: string }): Promise<void> {
         const publishModelName = `publish${modelName}`;
         const queryAst: any = {
             mutation: {
                 [publishModelName]: {
                     __arguments: {
-                        where: { id: documentId },
+                        where: { id: entryId },
                         to: 'PUBLISHED'
                     },
                     id: 1
@@ -217,18 +265,17 @@ export class HygraphApiClient {
         try {
             await this.contentClient.request(query);
         } catch (error: any) {
-            this.logger.warn(`Error publishing document:\n${error.toString()}\nQuery:\n${query}`);
-            return undefined;
+            this.logger.warn(`Error publishing entry:\n${error.toString()}\nQuery:\n${query}`);
         }
     }
 
-    async unpublishDocument({ documentId, modelName }: { documentId: string; modelName: string }): Promise<void> {
+    async unpublishEntry({ entryId, modelName }: { entryId: string; modelName: string }): Promise<void> {
         const publishModelName = `unpublish${modelName}`;
         const queryAst: any = {
             mutation: {
                 [publishModelName]: {
                     __arguments: {
-                        where: { id: documentId },
+                        where: { id: entryId },
                         from: 'PUBLISHED'
                     },
                     id: 1
@@ -239,8 +286,7 @@ export class HygraphApiClient {
         try {
             await this.contentClient.request(query);
         } catch (error: any) {
-            this.logger.warn(`Error unpublishing document:\n${error.toString()}\nQuery:\n${query}`);
-            return undefined;
+            this.logger.warn(`Error unpublishing entry:\n${error.toString()}\nQuery:\n${query}`);
         }
     }
 
@@ -378,13 +424,8 @@ function convertFieldsToQueryAST({
             case 'model': {
                 // TODO: fix issue with cyclic nesting and conflicts between
                 //  similar named fields between different components
-                const fieldInfo = model.context!.fieldInfo[field.name]!;
-                const multiModelField =
-                    fieldInfo.hygraphType === 'ComponentUnionField' || fieldInfo.hygraphType === 'UnionField';
-                const singleModelField =
-                    fieldInfo.hygraphType === 'ComponentField' ||
-                    fieldInfo.hygraphType === 'UniDirectionalRelationalField' ||
-                    fieldInfo.hygraphType === 'RelationalField';
+                const fieldInfo = model.context!.fieldInfoMap[field.name]!;
+                const multiModelField = fieldInfo.isMultiModel;
                 if (multiModelField) {
                     fieldAst[field.name] = {
                         __typename: 1,
@@ -398,20 +439,23 @@ function convertFieldsToQueryAST({
                                 if (!model) {
                                     return accum;
                                 }
-                                accum[modelName] = convertFieldsToQueryAST({
-                                    model,
-                                    getModelByName,
-                                    visitedModelsCount: {
-                                        ...visitedModelsCount,
-                                        [modelName]: (visitedModelsCount[modelName] ?? 0) + 1
-                                    },
-                                    logger
-                                });
+                                accum[modelName] = {
+                                    id: 1,
+                                    ...convertFieldsToQueryAST({
+                                        model,
+                                        getModelByName,
+                                        visitedModelsCount: {
+                                            ...visitedModelsCount,
+                                            [modelName]: (visitedModelsCount[modelName] ?? 0) + 1
+                                        },
+                                        logger
+                                    })
+                                };
                                 return accum;
                             }, {})
                         }
                     };
-                } else if (fieldOrListItem.models.length === 1 && singleModelField) {
+                } else if (fieldOrListItem.models.length === 1 && !multiModelField) {
                     const modelName = fieldOrListItem.models[0]!;
                     const visitedCount = visitedModelsCount[modelName];
                     if (typeof visitedCount !== 'undefined' && visitedCount > 5) {
@@ -421,6 +465,7 @@ function convertFieldsToQueryAST({
                     if (model) {
                         fieldAst[field.name] = {
                             __typename: 1,
+                            id: 1,
                             ...convertFieldsToQueryAST({
                                 model,
                                 getModelByName,
@@ -436,11 +481,8 @@ function convertFieldsToQueryAST({
                 break;
             }
             case 'reference': {
-                const fieldInfo = model.context!.fieldInfo[field.name]!;
-                const multiModelField = fieldInfo.hygraphType === 'UnionField';
-                const singleModelField =
-                    fieldInfo.hygraphType === 'UniDirectionalRelationalField' ||
-                    fieldInfo.hygraphType === 'RelationalField';
+                const fieldInfo = model.context!.fieldInfoMap[field.name]!;
+                const multiModelField = fieldInfo.isMultiModel;
                 if (multiModelField) {
                     fieldAst[field.name] = {
                         __typename: 1,
@@ -457,7 +499,7 @@ function convertFieldsToQueryAST({
                             }, {})
                         }
                     };
-                } else if (fieldOrListItem.models.length === 1 && singleModelField) {
+                } else if (fieldOrListItem.models.length === 1 && !multiModelField) {
                     fieldAst[field.name] = {
                         __typename: 1,
                         id: 1

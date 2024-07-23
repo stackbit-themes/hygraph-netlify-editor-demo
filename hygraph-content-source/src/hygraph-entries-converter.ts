@@ -1,10 +1,22 @@
 import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
-import type { HygraphDocument } from './hygraph-api-client';
+import type { HygraphEntry } from './hygraph-api-client';
 import { omitByUndefined } from '@stackbit/utils';
+import { FieldInfo, ModelWithContext } from './hygraph-schema-converter';
 
 export type DocumentWithContext = StackbitTypes.Document<DocumentContext>;
-export type DocumentContext = {};
+export type DocumentContext = {
+    nestedModelsInfo: NestedModelsInfo;
+};
+
+export type NestedModelsInfo = Record<
+    string,
+    {
+        id: string;
+        modelName: string;
+        isMultiModel: boolean;
+    }
+>;
 
 export const SystemDocumentFields = [
     '__typename',
@@ -22,20 +34,20 @@ export const SystemDocumentFields = [
 ];
 
 export function convertDocuments({
-    hygraphDocuments,
+    hygraphEntries,
     manageUrl,
     getModelByName,
     logger
 }: {
-    hygraphDocuments: HygraphDocument[];
+    hygraphEntries: HygraphEntry[];
     manageUrl: (documentId: string) => string;
-    getModelByName: (modelName: string) => StackbitTypes.Model | undefined;
+    getModelByName: (modelName: string) => ModelWithContext | undefined;
     logger: StackbitTypes.Logger;
 }): DocumentWithContext[] {
-    return hygraphDocuments
-        .map((hygraphDocument: HygraphDocument) =>
+    return hygraphEntries
+        .map((hygraphEntry: HygraphEntry) =>
             convertDocument({
-                hygraphDocument,
+                hygraphEntry,
                 manageUrl,
                 getModelByName,
                 logger
@@ -45,39 +57,44 @@ export function convertDocuments({
 }
 
 export function convertDocument({
-    hygraphDocument,
+    hygraphEntry,
     manageUrl,
     getModelByName,
     logger
 }: {
-    hygraphDocument: HygraphDocument;
+    hygraphEntry: HygraphEntry;
     manageUrl: (documentId: string) => string;
-    getModelByName: (modelName: string) => StackbitTypes.Model | undefined;
+    getModelByName: (modelName: string) => ModelWithContext | undefined;
     logger: StackbitTypes.Logger;
 }): DocumentWithContext | undefined {
-    const model = getModelByName(hygraphDocument.__typename);
+    const model = getModelByName(hygraphEntry.__typename);
     if (!model) {
-        logger.error(`Model '${hygraphDocument.__typename}' for document ${hygraphDocument.id} not found`);
+        logger.error(`Model '${hygraphEntry.__typename}' for document ${hygraphEntry.id} not found`);
         return undefined;
     }
 
-    const hygraphFields = _.omit(hygraphDocument, SystemDocumentFields);
+    const hygraphFields = _.omit(hygraphEntry, SystemDocumentFields);
+    const nestedModelsInfo = {};
 
     return omitByUndefined({
         type: 'document' as const,
-        id: hygraphDocument.id,
-        modelName: hygraphDocument.__typename,
-        manageUrl: manageUrl(hygraphDocument.id),
-        status: getDocumentStatus(hygraphDocument),
-        createdAt: hygraphDocument.createdAt,
+        id: hygraphEntry.id,
+        modelName: hygraphEntry.__typename,
+        manageUrl: manageUrl(hygraphEntry.id),
+        status: getDocumentStatus(hygraphEntry),
+        createdAt: hygraphEntry.createdAt,
         createdBy: undefined, // TODO: fetch users and assign by IDs
-        updatedAt: hygraphDocument.updatedAt,
+        updatedAt: hygraphEntry.updatedAt,
         updatedBy: undefined, // TODO: fetch users and assign by IDs
-        context: {},
+        context: {
+            nestedModelsInfo
+        },
         fields: convertFields({
             hygraphFields,
             model,
+            nestedModelsInfo,
             getModelByName,
+            fieldPath: [],
             logger
         })
     });
@@ -86,12 +103,16 @@ export function convertDocument({
 function convertFields({
     hygraphFields,
     model,
+    nestedModelsInfo,
     getModelByName,
+    fieldPath,
     logger
 }: {
     hygraphFields: Record<string, any>;
-    model: StackbitTypes.Model;
-    getModelByName: (modelName: string) => StackbitTypes.Model | undefined;
+    model: ModelWithContext;
+    nestedModelsInfo: NestedModelsInfo;
+    getModelByName: (modelName: string) => ModelWithContext | undefined;
+    fieldPath: StackbitTypes.FieldPath;
     logger: StackbitTypes.Logger;
 }): Record<string, StackbitTypes.DocumentField> {
     const fields: Record<string, StackbitTypes.DocumentField> = {};
@@ -106,7 +127,10 @@ function convertFields({
         const documentField = convertField({
             fieldValue,
             modelField,
+            nestedModelsInfo,
             getModelByName,
+            fieldInfo: model.context?.fieldInfoMap[fieldName],
+            fieldPath: fieldPath.concat(modelField.name),
             logger
         });
         if (documentField) {
@@ -116,29 +140,38 @@ function convertFields({
     return fields;
 }
 
-function convertField(options: {
-    fieldValue: any;
-    modelField: StackbitTypes.Field;
-    getModelByName: (modelName: string) => StackbitTypes.Model | undefined;
+type convertFieldOptions = {
+    nestedModelsInfo: NestedModelsInfo;
+    getModelByName: (modelName: string) => ModelWithContext | undefined;
+    fieldInfo: FieldInfo | undefined;
+    fieldPath: StackbitTypes.FieldPath;
     logger: StackbitTypes.Logger;
-}): StackbitTypes.DocumentField | undefined;
-function convertField(options: {
-    fieldValue: any[];
-    modelField: StackbitTypes.FieldListItems;
-    getModelByName: (modelName: string) => StackbitTypes.Model | undefined;
-    logger: StackbitTypes.Logger;
-}): StackbitTypes.DocumentListFieldItems | undefined;
+};
+
+function convertField(
+    options: {
+        fieldValue: any;
+        modelField: StackbitTypes.Field;
+    } & convertFieldOptions
+): StackbitTypes.DocumentField | undefined;
+function convertField(
+    options: {
+        fieldValue: any[];
+        modelField: StackbitTypes.FieldListItems;
+    } & convertFieldOptions
+): StackbitTypes.DocumentListFieldItems | undefined;
 function convertField({
     fieldValue,
     modelField,
+    nestedModelsInfo,
     getModelByName,
+    fieldInfo,
+    fieldPath,
     logger
 }: {
     fieldValue: any;
     modelField: StackbitTypes.FieldSpecificProps;
-    getModelByName: (modelName: string) => StackbitTypes.Model | undefined;
-    logger: StackbitTypes.Logger;
-}): StackbitTypes.DocumentField | undefined {
+} & convertFieldOptions): StackbitTypes.DocumentField | undefined {
     switch (modelField.type) {
         case 'string':
         case 'url':
@@ -199,22 +232,34 @@ function convertField({
         case 'model': {
             const model = getModelByName(fieldValue.__typename);
             if (!model) {
-                logger.error(`Model '${fieldValue.__typename}' for field not found`);
+                logger.error(`Model '${fieldValue.__typename}' for field at path ${fieldPath.join('.')} not found`);
                 return undefined;
             }
             const hygraphFields = _.omit(fieldValue, ['__typename', 'id', 'stage']);
+            nestedModelsInfo[fieldPath.join('.')] = {
+                id: fieldValue.id,
+                modelName: model.name,
+                isMultiModel: !!fieldInfo?.isMultiModel
+            };
             return {
                 type: modelField.type,
-                modelName: fieldValue.__typename,
+                modelName: model.name,
                 fields: convertFields({
                     hygraphFields,
                     model,
+                    nestedModelsInfo,
                     getModelByName,
+                    fieldPath,
                     logger
                 })
             };
         }
         case 'reference': {
+            nestedModelsInfo[fieldPath.join('.')] = {
+                id: fieldValue.id,
+                modelName: fieldValue.__typename,
+                isMultiModel: !!fieldInfo?.isMultiModel
+            };
             return {
                 type: modelField.type,
                 refType: 'document',
@@ -231,11 +276,14 @@ function convertField({
                 items: !Array.isArray(fieldValue)
                     ? []
                     : fieldValue
-                          .map((itemValue) =>
+                          .map((itemValue, index) =>
                               convertField({
                                   fieldValue: itemValue,
                                   modelField: modelField.items,
+                                  nestedModelsInfo,
                                   getModelByName,
+                                  fieldInfo,
+                                  fieldPath: fieldPath.concat(index),
                                   logger
                               })
                           )
@@ -255,12 +303,12 @@ function convertField({
     }
 }
 
-function getDocumentStatus(hygraphDocument: HygraphDocument): StackbitTypes.DocumentStatus {
-    const publishedDoc = hygraphDocument.documentInStages.find((doc) => doc.stage === 'PUBLISHED');
+function getDocumentStatus(hygraphEntry: HygraphEntry): StackbitTypes.DocumentStatus {
+    const publishedDoc = hygraphEntry.documentInStages.find((doc) => doc.stage === 'PUBLISHED');
     if (!publishedDoc) {
         return 'added';
     }
-    if (publishedDoc.updatedAt === hygraphDocument.updatedAt) {
+    if (publishedDoc.updatedAt === hygraphEntry.updatedAt) {
         return 'published';
     }
     return 'modified';

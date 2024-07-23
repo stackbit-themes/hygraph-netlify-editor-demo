@@ -47,16 +47,16 @@ export type ModelWithContext = StackbitTypes.Model<ModelContext>;
 export type ModelContext = {
     internalId: string;
     pluralId: string;
-    fieldInfo: FieldInfo;
+    fieldInfoMap: FieldInfoMap;
 };
 
-export type FieldInfo = Record<
-    string,
-    {
-        type: string;
-        hygraphType: string;
-    }
->;
+export type FieldInfoMap = Record<string, FieldInfo>;
+
+export type FieldInfo = {
+    type: string;
+    hygraphType: string;
+    isMultiModel: boolean;
+};
 
 export function convertModels({
     models,
@@ -88,7 +88,7 @@ function convertModel({
     enumOptionsById: EnumOptionsById;
     logger: StackbitTypes.Logger;
 }): ModelWithContext {
-    const fieldInfo: FieldInfo = {};
+    const fieldInfoMap: FieldInfoMap = {};
     return {
         type: model.__typename === 'Component' ? 'object' : 'data',
         name: model.apiId,
@@ -98,14 +98,14 @@ function convertModel({
         fields: convertFields({
             fields: model.fields,
             enumOptionsById,
-            fieldInfo,
+            fieldInfoMap,
             logger,
             debugContext: { modelName: model.apiId, modelType: model.__typename }
         }),
         context: {
             internalId: model.id,
             pluralId: model.apiIdPlural,
-            fieldInfo
+            fieldInfoMap
         }
     };
 }
@@ -125,13 +125,13 @@ type DebugContext = {
 function convertFields({
     fields,
     enumOptionsById,
-    fieldInfo,
+    fieldInfoMap,
     debugContext,
     logger
 }: {
     fields: HygraphTypes.IField[];
     enumOptionsById: EnumOptionsById;
-    fieldInfo: FieldInfo;
+    fieldInfoMap: FieldInfoMap;
     logger: StackbitTypes.Logger;
     debugContext: DebugContext;
 }): StackbitTypes.Field[] {
@@ -142,7 +142,7 @@ function convertFields({
             return convertField({
                 field: field as HygraphField,
                 enumOptionsById,
-                fieldInfo,
+                fieldInfoMap,
                 logger,
                 debugContext
             });
@@ -153,13 +153,13 @@ function convertFields({
 function convertField({
     field,
     enumOptionsById,
-    fieldInfo,
+    fieldInfoMap,
     logger,
     debugContext
 }: {
     field: HygraphField;
     enumOptionsById: EnumOptionsById;
-    fieldInfo: FieldInfo;
+    fieldInfoMap: FieldInfoMap;
     logger: StackbitTypes.Logger;
     debugContext: DebugContext;
 }): StackbitTypes.Field | null {
@@ -252,9 +252,10 @@ function convertField({
             });
         }
         case 'ComponentField': {
-            fieldInfo[field.apiId] = {
+            fieldInfoMap[field.apiId] = {
                 type: 'model',
-                hygraphType: 'ComponentField'
+                hygraphType: 'ComponentField',
+                isMultiModel: false
             };
             return toFieldOrListField(field, {
                 type: 'model',
@@ -262,9 +263,10 @@ function convertField({
             });
         }
         case 'ComponentUnionField': {
-            fieldInfo[field.apiId] = {
+            fieldInfoMap[field.apiId] = {
                 type: 'model',
-                hygraphType: 'ComponentUnionField'
+                hygraphType: 'ComponentUnionField',
+                isMultiModel: true
             };
             return toFieldOrListField(field, {
                 type: 'model',
@@ -279,9 +281,10 @@ function convertField({
                 );
                 return null;
             }
-            fieldInfo[field.apiId] = {
+            fieldInfoMap[field.apiId] = {
                 type: 'reference',
-                hygraphType: 'UniDirectionalRelationalField'
+                hygraphType: 'UniDirectionalRelationalField',
+                isMultiModel: false
             };
             return toFieldOrListField(field, {
                 type: 'reference',
@@ -291,9 +294,10 @@ function convertField({
         case 'RelationalField': {
             // Single model, two-way references. The back-reference is also RelationalField.
             if (field.relationType === RelationalFieldType.Relation) {
-                fieldInfo[field.apiId] = {
+                fieldInfoMap[field.apiId] = {
                     type: 'reference',
-                    hygraphType: 'RelationalField'
+                    hygraphType: 'RelationalField',
+                    isMultiModel: false
                 };
                 return toFieldOrListField(field, {
                     type: 'reference',
@@ -309,9 +313,10 @@ function convertField({
         case 'UnionField': {
             // Multi-model, two-way references, the model with original forward-reference has "isMemberType: false".
             // The model with te back-reference is also RelationalField but with "isMemberType: true".
-            fieldInfo[field.apiId] = {
+            fieldInfoMap[field.apiId] = {
                 type: 'reference',
-                hygraphType: 'UnionField'
+                hygraphType: 'UnionField',
+                isMultiModel: !field.isMemberType
             };
             return toFieldOrListField(field, {
                 type: 'reference',

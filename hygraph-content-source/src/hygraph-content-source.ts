@@ -1,10 +1,10 @@
 import type * as StackbitTypes from '@stackbit/types';
 import type * as HygraphTypes from './gql-types';
 import { HygraphApiClient, HygraphWebhook } from './hygraph-api-client';
-import { convertModels, SchemaContext, ModelContext } from './hygraph-schema-converter';
-import { convertDocument, convertDocuments, DocumentContext, DocumentWithContext } from './hygraph-document-converter';
-import { convertAssets, AssetContext, AssetWithContext, convertAsset } from './hygraph-asset-converter';
-import { convertOperations } from './hygraph-operation-converter';
+import { convertModels, SchemaContext, ModelContext, ModelWithContext } from './hygraph-schema-converter';
+import { convertDocument, convertDocuments, DocumentContext, DocumentWithContext } from './hygraph-entries-converter';
+import { convertAssets, AssetContext, AssetWithContext, convertAsset } from './hygraph-assets-converter';
+import { convertOperations, convertUpdateOperationFields } from './hygraph-operation-converter';
 
 interface HygraphContentSourceOptions {
     /**
@@ -145,9 +145,9 @@ export class HygraphContentSource
 
     async getDocuments(options?: { syncContext?: unknown } | undefined): Promise<DocumentWithContext[]> {
         this.logger.debug('fetching documents');
-        const hygraphDocuments = await this.client.getDocuments(this.cache.getSchema().models);
+        const hygraphEntries = await this.client.getEntries(this.cache.getSchema().models);
         return convertDocuments({
-            hygraphDocuments,
+            hygraphEntries,
             // TODO: generate URL to the document using documentId and other properties available in this content source.
             manageUrl: (documentId) => `https://sutdio-${this.region.toLowerCase()}.hygraph.com`,
             getModelByName: this.cache.getModelByName,
@@ -188,16 +188,16 @@ export class HygraphContentSource
                         assets: [asset]
                     });
                 } else {
-                    const hygraphDocument = await this.client.getDocumentById({
-                        documentId: data.data.id,
+                    const hygraphEntry = await this.client.getEntryById({
+                        entryId: data.data.id,
                         modelName,
                         getModelByName: this.cache.getModelByName
                     });
-                    if (!hygraphDocument) {
+                    if (!hygraphEntry) {
                         return;
                     }
                     const document = convertDocument({
-                        hygraphDocument,
+                        hygraphEntry,
                         manageUrl: (documentId) => `https://sutdio-${this.region.toLowerCase()}.hygraph.com`,
                         getModelByName: this.cache.getModelByName,
                         logger: this.logger
@@ -224,14 +224,23 @@ export class HygraphContentSource
         }
     }
 
-    createDocument(options: {
+    async createDocument(options: {
         updateOperationFields: Record<string, StackbitTypes.UpdateOperationField>;
-        model: StackbitTypes.Model<unknown>;
+        model: ModelWithContext;
         locale?: string | undefined;
         defaultLocaleDocumentId?: string | undefined;
         userContext?: StackbitTypes.User | undefined;
     }): Promise<{ documentId: string }> {
-        throw new Error('Method not implemented.');
+        const data = convertUpdateOperationFields({
+            updateOperationFields: options.updateOperationFields,
+            model: options.model,
+            getModelByName: this.cache.getModelByName
+        });
+        const result = await this.client.createEntry({
+            modelName: options.model.name,
+            data: data
+        });
+        return { documentId: result.id };
     }
 
     async updateDocument(options: {
@@ -239,19 +248,26 @@ export class HygraphContentSource
         operations: StackbitTypes.UpdateOperation[];
         userContext?: StackbitTypes.User | undefined;
     }): Promise<void> {
-        const data = convertOperations({ operations: options.operations });
-        await this.client.updateDocument({
-            documentId: options.document.id,
+        const data = convertOperations({
+            operations: options.operations,
+            document: options.document,
+            getModelByName: this.cache.getModelByName
+        });
+        await this.client.updateEntry({
+            entryId: options.document.id,
             modelName: options.document.modelName,
             data: data
         });
     }
 
-    deleteDocument(options: {
+    async deleteDocument(options: {
         document: DocumentWithContext;
         userContext?: StackbitTypes.User | undefined;
     }): Promise<void> {
-        throw new Error('Method not implemented.');
+        await this.client.deleteEntry({
+            entryId: options.document.id,
+            modelName: options.document.modelName
+        });
     }
 
     // archiveDocument?(options: { document: DocumentWithContext; userContext?: StackbitTypes.User | undefined; }): Promise<void> {
@@ -286,6 +302,7 @@ export class HygraphContentSource
         locale?: string | undefined;
         userContext?: StackbitTypes.User | undefined;
     }): Promise<AssetWithContext> {
+        // TODO: implement asset uploading
         throw new Error('Method not implemented.');
     }
 
@@ -294,6 +311,7 @@ export class HygraphContentSource
         operations: StackbitTypes.UpdateOperation[];
         userContext?: StackbitTypes.User | undefined;
     }): Promise<void> {
+        // TODO: implement update asset
         throw new Error('Method not implemented.');
     }
 
@@ -313,8 +331,8 @@ export class HygraphContentSource
     }): Promise<void> {
         // TODO: optimize - batch publish by IDs
         for (const document of options.documents) {
-            await this.client.publishDocument({
-                documentId: document.id,
+            await this.client.publishEntry({
+                entryId: document.id,
                 modelName: document.modelName
             });
         }
@@ -327,8 +345,8 @@ export class HygraphContentSource
     }): Promise<void> {
         // TODO: optimize - batch publish by IDs
         for (const document of options.documents) {
-            await this.client.unpublishDocument({
-                documentId: document.id,
+            await this.client.unpublishEntry({
+                entryId: document.id,
                 modelName: document.modelName
             });
         }
