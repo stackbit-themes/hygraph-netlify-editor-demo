@@ -24,7 +24,7 @@ export default function Routine({
 }: Props) {
   return (
     <section className="py-16 relative bg-light" data-sb-field-path={`.${index}`}>
-      <Image
+      {image && <Image
         src={image.url}
         alt={title}
         width={768}
@@ -32,7 +32,7 @@ export default function Routine({
         className="lg:w-2/4"
         sizes="100vw"
         loading="lazy"
-      />
+      />}
 
       <div className="w-full bg-tertiary p-8 lg:max-w-2xl lg:absolute top-32 right-32">
         <h2 className="mb-8 font-title">

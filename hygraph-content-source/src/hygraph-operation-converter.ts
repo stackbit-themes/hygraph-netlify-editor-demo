@@ -60,7 +60,7 @@ export function convertOperations({
                     fieldPath: operation.fieldPath,
                     document,
                     getModelByName,
-                    value: (fieldName, model) => {
+                    value: () => {
                         if (operation.modelField.type === 'model') {
                             return { delete: true };
                         } else {
@@ -76,14 +76,21 @@ export function convertOperations({
                     fieldPath: operation.fieldPath,
                     document,
                     getModelByName,
-                    value: (fieldName, model) =>
-                        convertUpdateOperationFieldToValue({
+                    value: (fieldName, model) => {
+                        let insertBeforeId: string | undefined;
+                        if (typeof operation.index !== 'undefined') {
+                            const fieldPathStr = operation.fieldPath.concat(operation.index).join('.');
+                            insertBeforeId = document.context.nestedModelsInfo[fieldPathStr]?.id;
+                        }
+                        return convertUpdateOperationFieldToValue({
                             updateOperationField: operation.item,
                             fieldName,
                             model,
                             getModelByName,
-                            isListItem: true
-                        })
+                            isListItem: true,
+                            insertBeforeId
+                        });
+                    }
                 });
                 _.merge(result, data);
                 break;
@@ -194,13 +201,15 @@ function convertUpdateOperationFieldToValue({
     fieldName,
     model,
     getModelByName,
-    isListItem = false
+    isListItem = false,
+    insertBeforeId
 }: {
     updateOperationField: StackbitTypes.UpdateOperationField;
     fieldName: string;
     model: ModelWithContext;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
     isListItem?: boolean;
+    insertBeforeId?: string;
 }): any {
     if (updateOperationField.type === 'object') {
         throw new Error(`Fields of type 'object' not supported in Hygraph.`);
@@ -209,7 +218,7 @@ function convertUpdateOperationFieldToValue({
         if (!childModel) {
             throw new Error(`Model '${updateOperationField.modelName}' not found`);
         }
-        const data = _.reduce(
+        let data = _.reduce(
             updateOperationField.fields,
             (accum: Record<string, any>, updateOperationField, fieldName) => {
                 accum[fieldName] = convertUpdateOperationFieldToValue({
@@ -223,13 +232,24 @@ function convertUpdateOperationFieldToValue({
             {}
         );
         const modelInfo = model.context?.fieldInfoMap[fieldName];
-        const wrappedData = isListItem ? { data } : data;
+        if (isListItem) {
+            if (insertBeforeId) {
+                data = {
+                    position: {
+                        before: insertBeforeId
+                    },
+                    data
+                };
+            } else {
+                data = { data };
+            }
+        }
         return {
             create: modelInfo?.isMultiModel
                 ? {
-                      [updateOperationField.modelName]: wrappedData
+                      [updateOperationField.modelName]: data
                   }
-                : wrappedData
+                : data
         };
     } else if (updateOperationField.type === 'reference') {
         throw new Error(`Setting references is not supported yet.`);
