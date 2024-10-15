@@ -149,11 +149,15 @@ export class HygraphContentSource
         this.logger.debug('fetching documents');
         const { models } = this.cache.getSchema();
 
+        const modelIdByNameMapping = models.reduce((acc, model) => {
+            acc[model.name] = model.context!.internalId;
+            return acc;
+        }, {} as Record<string, string>);
         const hygraphEntries = await this.client.getEntries(models);
         return convertDocuments({
             hygraphEntries,
             manageUrl: (documentId, modelName) => {
-                const modelId = models.find(model => model.name === modelName)?.context?.internalId;
+                const modelId = modelIdByNameMapping[modelName];
                 return `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/content/${modelId}/entry/${documentId}`;
             },
             getModelByName: this.cache.getModelByName,
