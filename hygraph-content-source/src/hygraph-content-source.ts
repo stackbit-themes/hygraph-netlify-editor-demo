@@ -38,8 +38,7 @@ interface HygraphContentSourceOptions {
 
 export class HygraphContentSource
     implements
-        StackbitTypes.ContentSourceInterface<unknown, SchemaContext, DocumentContext, AssetContext, ModelContext>
-{
+    StackbitTypes.ContentSourceInterface<unknown, SchemaContext, DocumentContext, AssetContext, ModelContext> {
     private projectId: string;
     private region: string;
     private environment: string;
@@ -93,17 +92,17 @@ export class HygraphContentSource
             if (!options.webhookUrl) {
                 this.logger.info(
                     'While developing locally, you can use webhooks to enable automatic ' +
-                        'content updated in the visual editor. First, start ngrok by typing "\x1b[32mngrok http 8090\x1b[0m" ' +
-                        'in a new terminal window. Ngrok will print a public url starting with https://... ' +
-                        'Use it to restart "stackbit dev", this time provide --csi-webhook-url argument ' +
-                        'by appending the "/_stackbit/onWebhook" to the ngrok\'s public URL. For example: ' +
-                        '"\x1b[32mstackbit dev --csi-webhook-url=https://REPLACE.ngrok.app/_stackbit/onWebhook\x1b[0m"'
+                    'content updated in the visual editor. First, start ngrok by typing "\x1b[32mngrok http 8090\x1b[0m" ' +
+                    'in a new terminal window. Ngrok will print a public url starting with https://... ' +
+                    'Use it to restart "stackbit dev", this time provide --csi-webhook-url argument ' +
+                    'by appending the "/_stackbit/onWebhook" to the ngrok\'s public URL. For example: ' +
+                    '"\x1b[32mstackbit dev --csi-webhook-url=https://REPLACE.ngrok.app/_stackbit/onWebhook\x1b[0m"'
                 );
             } else {
                 this.logger.info(
                     `The webhook is \x1b[32m${options.webhookUrl}\x1b[0m. ` +
-                        'Add this webhook to your Hygraph project. ' +
-                        'In webhook\'s configuration, set the method to POST, and check the "Include payload" option.'
+                    'Add this webhook to your Hygraph project. ' +
+                    'In webhook\'s configuration, set the method to POST, and check the "Include payload" option.'
                 );
             }
         }
@@ -118,8 +117,8 @@ export class HygraphContentSource
         });
     }
 
-    async reset(): Promise<void> {}
-    async destroy(): Promise<void> {}
+    async reset(): Promise<void> { }
+    async destroy(): Promise<void> { }
 
     async hasAccess(options: {
         userContext?: StackbitTypes.User | undefined;
@@ -130,7 +129,7 @@ export class HygraphContentSource
     async getSchema(): Promise<StackbitTypes.Schema<SchemaContext, ModelContext>> {
         this.logger.debug('fetching schema');
         const schema = await this.client.getSchema();
-        
+
         const models = convertModels({
             models: schema.models as HygraphTypes.Model[],
             enumerations: schema.enumerations,
@@ -149,11 +148,10 @@ export class HygraphContentSource
     async getDocuments(options?: { syncContext?: unknown } | undefined): Promise<DocumentWithContext[]> {
         this.logger.debug('fetching documents');
         const { models } = this.cache.getSchema();
-        
+
         const hygraphEntries = await this.client.getEntries(models);
         return convertDocuments({
             hygraphEntries,
-            //[DONE] TODO: generate URL to the document using documentId and other properties available in this content source. 
             manageUrl: (documentId, modelName) => {
                 const modelId = models.find(model => model.name === modelName)?.context?.internalId;
                 return `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/content/${modelId}/entry/${documentId}`;
@@ -170,7 +168,6 @@ export class HygraphContentSource
 
         return convertAssets({
             hygraphAssets,
-            //[DONE] TODO: generate URL to the asset using assetId and other properties available in this content source.
             manageUrl: (assetId) => `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/assets/${assetModelId}/entry/${assetId}`,
         });
     }
@@ -191,8 +188,10 @@ export class HygraphContentSource
                     }
                     const asset = convertAsset({
                         hygraphAsset,
-                        // TODO: generate URL to the asset using assetId and other properties available in this content source.
-                        manageUrl: (assetId) => `https://sutdio-${this.region.toLowerCase()}.hygraph.com`
+                        manageUrl: (assetId) => {
+                            const { assetModelId } = this.cache.getSchema().context;
+                            return `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/assets/${assetModelId}/entry/${assetId}`;
+                        }
                     });
                     this.cache.updateContent({
                         assets: [asset]
@@ -208,7 +207,11 @@ export class HygraphContentSource
                     }
                     const document = convertDocument({
                         hygraphEntry,
-                        manageUrl: (documentId) => `https://sutdio-${this.region.toLowerCase()}.hygraph.com`,
+                        manageUrl: (documentId, modelName) => {
+                            const { models } = this.cache.getSchema();
+                            const modelId = models.find(model => model.name === modelName)?.context?.internalId;
+                            return `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/content/${modelId}/entry/${documentId}`;
+                        },
                         getModelByName: this.cache.getModelByName,
                         logger: this.logger
                     });
