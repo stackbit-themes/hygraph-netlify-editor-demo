@@ -130,6 +130,7 @@ export class HygraphContentSource
     async getSchema(): Promise<StackbitTypes.Schema<SchemaContext, ModelContext>> {
         this.logger.debug('fetching schema');
         const schema = await this.client.getSchema();
+        
         const models = convertModels({
             models: schema.models as HygraphTypes.Model[],
             enumerations: schema.enumerations,
@@ -139,17 +140,24 @@ export class HygraphContentSource
         return {
             models: models,
             locales: [],
-            context: null
+            context: {
+                assetModelId: schema.assetModelId,
+            }
         };
     }
 
     async getDocuments(options?: { syncContext?: unknown } | undefined): Promise<DocumentWithContext[]> {
         this.logger.debug('fetching documents');
-        const hygraphEntries = await this.client.getEntries(this.cache.getSchema().models);
+        const { models } = this.cache.getSchema();
+        
+        const hygraphEntries = await this.client.getEntries(models);
         return convertDocuments({
             hygraphEntries,
-            // TODO: generate URL to the document using documentId and other properties available in this content source.
-            manageUrl: (documentId) => `https://sutdio-${this.region.toLowerCase()}.hygraph.com`,
+            //[DONE] TODO: generate URL to the document using documentId and other properties available in this content source. 
+            manageUrl: (documentId, modelName) => {
+                const modelId = models.find(model => model.name === modelName)?.context?.internalId;
+                return `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/content/${modelId}/entry/${documentId}`;
+            },
             getModelByName: this.cache.getModelByName,
             logger: this.logger
         });
@@ -158,10 +166,12 @@ export class HygraphContentSource
     async getAssets(): Promise<AssetWithContext[]> {
         this.logger.debug('fetching assets');
         const hygraphAssets = await this.client.getAssets();
+        const { assetModelId } = this.cache.getSchema().context;
+
         return convertAssets({
             hygraphAssets,
-            // TODO: generate URL to the asset using assetId and other properties available in this content source.
-            manageUrl: (assetId) => `https://sutdio-${this.region.toLowerCase()}.hygraph.com`
+            //[DONE] TODO: generate URL to the asset using assetId and other properties available in this content source.
+            manageUrl: (assetId) => `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/assets/${assetModelId}/entry/${assetId}`,
         });
     }
 

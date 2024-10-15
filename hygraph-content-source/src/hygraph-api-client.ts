@@ -99,7 +99,8 @@ export class HygraphApiClient {
             models: environment?.contentModel.models ?? [],
             components: environment?.contentModel.components ?? [],
             enumerations: environment?.contentModel.enumerations ?? [],
-            webhooks: environment?.webhooks ?? []
+            webhooks: environment?.webhooks ?? [],
+            assetModelId: environment?.contentModel.assetModel?.id ?? null,
         };
     }
 

@@ -40,7 +40,7 @@ export function convertDocuments({
     logger
 }: {
     hygraphEntries: HygraphEntry[];
-    manageUrl: (documentId: string) => string;
+    manageUrl: (documentId: string, modelName: string) => string;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
     logger: StackbitTypes.Logger;
 }): DocumentWithContext[] {
@@ -63,7 +63,7 @@ export function convertDocument({
     logger
 }: {
     hygraphEntry: HygraphEntry;
-    manageUrl: (documentId: string) => string;
+    manageUrl: (documentId: string, modelName: string) => string;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
     logger: StackbitTypes.Logger;
 }): DocumentWithContext | undefined {
@@ -80,7 +80,7 @@ export function convertDocument({
         type: 'document' as const,
         id: hygraphEntry.id,
         modelName: hygraphEntry.__typename,
-        manageUrl: manageUrl(hygraphEntry.id),
+        manageUrl: manageUrl(hygraphEntry.id, hygraphEntry.__typename),
         status: getDocumentStatus(hygraphEntry),
         createdAt: hygraphEntry.createdAt,
         createdBy: undefined, // TODO: fetch users and assign by IDs
