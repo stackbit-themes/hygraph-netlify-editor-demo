@@ -44,6 +44,7 @@ type EnumOptionsById = Record<string, StackbitTypes.FieldEnumOptionObject[]>;
 export type SchemaContext = {
     assetModelId: string | null;
 };
+
 // Remap model.context to be required for easier typing.
 export type ModelWithContext = StackbitTypes.Model<ModelContext>;
 export type ModelContext = {

@@ -153,6 +153,7 @@ export class HygraphContentSource
             acc[model.name] = model.context!.internalId;
             return acc;
         }, {} as Record<string, string>);
+
         const hygraphEntries = await this.client.getEntries(models);
         return convertDocuments({
             hygraphEntries,
