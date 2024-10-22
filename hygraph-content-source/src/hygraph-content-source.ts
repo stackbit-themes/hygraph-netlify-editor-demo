@@ -107,7 +107,7 @@ export class HygraphContentSource
                 );
             }
         } else {
-            this.logger.info('Webhook URL:', options.webhookUrl);
+            options.userLogger.info('Webhook URL:', options.webhookUrl);
         }
 
         this.client = new HygraphApiClient({
