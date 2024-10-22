@@ -12,6 +12,9 @@ const nextConfig = {
         hostname: "federate-this-astro.vercel.app",
         port: "",
       },
+      {
+        hostname: 'us-west-2.graphassets.com'
+      }
     ],
   },
 };

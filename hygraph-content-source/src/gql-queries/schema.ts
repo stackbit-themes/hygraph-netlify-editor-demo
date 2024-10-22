@@ -14,8 +14,14 @@ export default gql`
                     id
                     displayName
                     name
+                    assetConfig {
+                        apiKey
+                    }
                     contentModel {
                         __typename
+                        assetModel {
+                            id
+                        }
                         models {
                             ...ModelFragment
                         }

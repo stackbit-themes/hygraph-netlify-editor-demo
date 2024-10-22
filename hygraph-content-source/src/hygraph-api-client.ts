@@ -5,6 +5,8 @@ import type { Query } from './gql-types';
 import schemaQuery from './gql-queries/schema';
 import type { ModelWithContext } from './hygraph-schema-converter';
 
+const ITEMS_PER_REQUEST = 100;
+
 export type HygraphEntry = {
     __typename: string;
     id: string;
@@ -99,7 +101,8 @@ export class HygraphApiClient {
             models: environment?.contentModel.models ?? [],
             components: environment?.contentModel.components ?? [],
             enumerations: environment?.contentModel.enumerations ?? [],
-            webhooks: environment?.webhooks ?? []
+            webhooks: environment?.webhooks ?? [],
+            assetModelId: environment?.contentModel.assetModel.id ?? null,
         };
     }
 
@@ -107,12 +110,18 @@ export class HygraphApiClient {
         const queryAst: any = { query: {} };
         const dataModels = models.filter((model) => model.type === 'data');
         const modelsByName = _.keyBy(models, 'name');
+
+        const result: HygraphEntry[] = [];
+
+        let query;
+
         for (const model of dataModels) {
             const queryModelName = toLowerCaseFirst(model.context!.pluralId);
             queryAst.query[queryModelName] = {
                 __arguments: {
                     stage: 'DRAFT',
-                    first: 100 // TODO: implement pagination
+                    first: ITEMS_PER_REQUEST,
+                    skip: 0,
                 },
                 ...defaultDocumentQueryFields({
                     model,
@@ -121,10 +130,25 @@ export class HygraphApiClient {
                 })
             };
         }
-        const query = convertASTToQuery(queryAst);
+        
         try {
-            const result = (await this.contentClient.request(query)) as Record<string, HygraphEntry[]>;
-            return _.flatMap(result);
+            let hasNextPage;
+            do {
+                query = convertASTToQuery(queryAst);
+                const queryResult = (await this.contentClient.request(query)) as Record<string, HygraphEntry[]>;
+                result.push(..._.flatMap(queryResult));
+
+                const typesWithMoreData = Object.keys(queryResult).filter((key) => queryResult[key]!.length === ITEMS_PER_REQUEST);
+                queryAst.query = _.pick(queryAst.query, typesWithMoreData);
+
+                for (const type of typesWithMoreData) {
+                    queryAst.query[type].__arguments.skip += ITEMS_PER_REQUEST;
+                }
+
+                hasNextPage = typesWithMoreData.length > 0;
+            } while (hasNextPage);
+
+            return result;
         } catch (error: any) {
             this.logger.warn(`Error fetching entries:\n${error.toString()}\nQuery:\n${query}`);
             return [];
@@ -291,21 +315,38 @@ export class HygraphApiClient {
     }
 
     async getAssets(): Promise<HygraphAsset[]> {
+        const assets: HygraphAsset[] = [];
+
+        let skip = 0;
+        let query;
+
         const queryAst: any = {
             query: {
                 assets: {
                     __arguments: {
                         stage: 'DRAFT',
-                        first: 100 // TODO: implement pagination
+                        first: ITEMS_PER_REQUEST,
                     },
                     ...defaultAssetQueryFields()
                 }
             }
         };
-        const query = convertASTToQuery(queryAst);
+
         try {
-            const result = (await this.contentClient.request(query)) as { assets: HygraphAsset[] };
-            return result.assets;
+            let hasNextPage;
+            do {
+                queryAst.query.assets.__arguments.skip = skip;
+
+                query = convertASTToQuery(queryAst);
+
+                const result = (await this.contentClient.request(query)) as { assets: HygraphAsset[] };
+                assets.push(...result.assets);
+
+                skip += ITEMS_PER_REQUEST;
+                hasNextPage = result.assets.length === ITEMS_PER_REQUEST;
+            } while (hasNextPage);
+
+            return assets;
         } catch (error: any) {
             this.logger.warn(`Error fetching assets:\n${error.toString()}\nQuery:\n${query}`);
             return [];
