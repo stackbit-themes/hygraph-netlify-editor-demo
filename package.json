@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@graphql-codegen/cli": "^5.0.2",
-    "@stackbit/utils": "^0.4.23",
+    "@stackbit/utils": "^0.7.5",
     "graphql": "^16.8.1",
     "graphql-request": "^6.1.0",
     "lodash": "^4.17.21",

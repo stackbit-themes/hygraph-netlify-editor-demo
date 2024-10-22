@@ -71,6 +71,35 @@ export interface HygraphApiClientOptions {
     logger: StackbitTypes.Logger;
 }
 
+export interface HygraphAssetUploadOptions {
+    fileName: string;
+    base64: string;
+    mimeType: string;
+}
+
+export interface HygraphAssetUploadResponse {
+    id: string;
+    url: string;
+    upload: {
+        status: string;
+        expiresAt: string;
+        error: {
+            code: string;
+            message: string;
+        }
+        requestPostData: {
+            url: string;
+            date: string;
+            key: string;
+            signature: string;
+            algorithm: string;
+            policy: string;
+            credential: string;
+            securityToken: string;
+        }
+    }
+}
+
 export class HygraphApiClient {
     private contentClient: GraphQLClient;
     private managementClient: GraphQLClient;
@@ -130,7 +159,7 @@ export class HygraphApiClient {
                 })
             };
         }
-        
+
         try {
             let hasNextPage;
             do {
@@ -372,6 +401,84 @@ export class HygraphApiClient {
         } catch (error: any) {
             this.logger.warn(`Error fetching asset:\n${error.toString()}\nQuery:\n${query}`);
             return undefined;
+        }
+    }
+
+    async uploadAsset(options: HygraphAssetUploadOptions) {
+        try {
+            const createUploadResponse = await this.createUpload({ fileName: options.fileName });
+
+            const { requestPostData, error } = createUploadResponse.upload;
+
+            if (error) {
+                this.logger.warn(`Error creating asset upload:\n${error.message}`);
+                return undefined;
+            }
+
+            const formData = new FormData();
+
+            formData.append('X-Amz-Date', requestPostData.date);
+            formData.append('key', requestPostData.key);
+            formData.append('X-Amz-Signature', requestPostData.signature);
+            formData.append('X-Amz-Algorithm', requestPostData.algorithm);
+            formData.append('policy', requestPostData.policy);
+            formData.append('X-Amz-Credential', requestPostData.credential);
+            formData.append('X-Amz-Security-Token', requestPostData.securityToken);
+
+            formData.append('file', base64toBlob(options.base64, options.mimeType));
+
+            const headers = new Headers();
+            headers.append('Content-Disposition', `form-data; name="file"; filename="${options.fileName}"`);
+
+            const response = await fetch(requestPostData.url, {
+                method: 'POST',
+                headers,
+                body: formData,
+            });
+
+            if (!response.ok) {
+                this.logger.warn(`Error uploading asset: ${response.statusText}`);
+                return undefined;
+            }
+
+            return createUploadResponse.id;
+        } catch (err: any) {
+            this.logger.warn(`Error uploading asset:\n${err.toString()}`);
+            return undefined;
+        }
+    }
+
+    private async createUpload(options: { fileName: string; }): Promise<HygraphAssetUploadResponse> {
+        const gql = `mutation createAsset {
+            createAsset(data: { fileName: "${options.fileName}" }) {
+              id
+              url
+              upload {
+                status
+                expiresAt
+                error {
+                  code
+                  message
+                }
+                requestPostData {
+                  url
+                  date
+                  key
+                  signature
+                  algorithm
+                  policy
+                  credential
+                  securityToken
+                }
+              }
+            }
+          }`;
+
+        try {
+            return this.contentClient.request(gql).then((response) => { return response.createAsset; });
+        } catch (error: any) {
+            this.logger.warn(`Error creating asset upload:\n${error.toString()}`);
+            throw new Error(`Error creating asset upload: ${error.message}`);
         }
     }
 }
@@ -622,4 +729,24 @@ function serializeQueryArg(object: Record<string, any>) {
         ''
     );
     return `{ ${serialized} }`;
+}
+
+function base64toBlob(b64Data: string, contentType = '', sliceSize = 512) {
+    const byteCharacters = atob(b64Data);
+    const byteArrays = [];
+
+    for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+        const slice = byteCharacters.slice(offset, offset + sliceSize);
+
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+        }
+
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+    }
+
+    const blob = new Blob(byteArrays, { type: contentType });
+    return blob;
 }
