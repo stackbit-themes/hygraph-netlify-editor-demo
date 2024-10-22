@@ -276,20 +276,20 @@ function convertField({
                 items: !Array.isArray(fieldValue)
                     ? []
                     : fieldValue
-                          .map((itemValue, index) =>
-                              convertField({
-                                  fieldValue: itemValue,
-                                  modelField: modelField.items,
-                                  nestedModelsInfo,
-                                  getModelByName,
-                                  fieldInfo,
-                                  fieldPath: fieldPath.concat(index),
-                                  logger
-                              })
-                          )
-                          .filter(
-                              (documentField): documentField is StackbitTypes.DocumentListFieldItems => !!documentField
-                          )
+                        .map((itemValue, index) =>
+                            convertField({
+                                fieldValue: itemValue,
+                                modelField: modelField.items,
+                                nestedModelsInfo,
+                                getModelByName,
+                                fieldInfo,
+                                fieldPath: fieldPath.concat(index),
+                                logger
+                            })
+                        )
+                        .filter(
+                            (documentField): documentField is StackbitTypes.DocumentListFieldItems => !!documentField
+                        )
             };
         }
         case 'style': {
@@ -304,12 +304,15 @@ function convertField({
 }
 
 function getDocumentStatus(hygraphEntry: HygraphEntry): StackbitTypes.DocumentStatus {
-    const publishedDoc = hygraphEntry.documentInStages.find((doc) => doc.stage === 'PUBLISHED');
+    const publishedDoc = hygraphEntry.documentInStages?.find((doc) => doc.stage === 'PUBLISHED');
+
     if (!publishedDoc) {
         return 'added';
     }
+
     if (publishedDoc.updatedAt === hygraphEntry.updatedAt) {
         return 'published';
     }
+
     return 'modified';
 }

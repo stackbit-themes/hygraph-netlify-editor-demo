@@ -63,6 +63,8 @@ export function convertOperations({
                     value: () => {
                         if (operation.modelField.type === 'model') {
                             return { delete: true };
+                        } else if (operation.modelField.type === 'image' || operation.modelField.type === 'reference') {
+                            return { disconnect: true };
                         } else {
                             return null;
                         }
@@ -252,7 +254,8 @@ function convertUpdateOperationFieldToValue({
                 : data
         };
     } else if (updateOperationField.type === 'reference') {
-        throw new Error(`Setting references is not supported yet.`);
+        return { connect: { id: updateOperationField.refId } };
+        // throw new Error(`Setting references is not supported yet.`);
     } else if (updateOperationField.type === 'cross-reference') {
         throw new Error(`Setting cross-reference is not supported yet.`);
     } else if (updateOperationField.type === 'list') {
