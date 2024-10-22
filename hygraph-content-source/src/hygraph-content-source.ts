@@ -88,6 +88,7 @@ export class HygraphContentSource
         this.cache = options.cache;
         this.localDev = options.localDev;
         this.logger.info('initializing...');
+
         if (this.localDev) {
             if (!options.webhookUrl) {
                 this.logger.info(
@@ -105,6 +106,8 @@ export class HygraphContentSource
                     'In webhook\'s configuration, set the method to POST, and check the "Include payload" option.'
                 );
             }
+        } else {
+            this.logger.info('Webhook URL:', options.webhookUrl);
         }
 
         this.client = new HygraphApiClient({
