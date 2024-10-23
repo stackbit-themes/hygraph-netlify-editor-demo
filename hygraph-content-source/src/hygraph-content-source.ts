@@ -1,6 +1,6 @@
 import type * as StackbitTypes from '@stackbit/types';
 import type * as HygraphTypes from './gql-types';
-import { HygraphApiClient, HygraphWebhook } from './hygraph-api-client';
+import { HygraphApiClient, HygraphEntry, HygraphWebhook } from './hygraph-api-client';
 import { convertModels, SchemaContext, ModelContext, ModelWithContext } from './hygraph-schema-converter';
 import { convertDocument, convertDocuments, DocumentContext, DocumentWithContext } from './hygraph-entries-converter';
 import { convertAssets, AssetContext, AssetWithContext, convertAsset } from './hygraph-assets-converter';
@@ -88,6 +88,7 @@ export class HygraphContentSource
         this.cache = options.cache;
         this.localDev = options.localDev;
         this.logger.info('initializing...');
+
         if (this.localDev) {
             if (!options.webhookUrl) {
                 this.logger.info(
@@ -105,6 +106,8 @@ export class HygraphContentSource
                     'In webhook\'s configuration, set the method to POST, and check the "Include payload" option.'
                 );
             }
+        } else {
+            options.userLogger.info(`Webhook URL: ${options.webhookUrl}`);
         }
 
         this.client = new HygraphApiClient({
@@ -180,12 +183,11 @@ export class HygraphContentSource
     async onWebhook({ data, headers }: { data: HygraphWebhook; headers: Record<string, string> }): Promise<void> {
         const modelName = data.data.__typename;
         const isAsset = modelName === 'Asset';
-        this.logger.debug(`got webhook request, ${modelName}:${data.operation}`);
+        this.logger.info(`got webhook request, ${modelName}:${data.operation}`);
+        this.logger.info(`Webhook Data, ${JSON.stringify(data.data, null, 2)}`);
         switch (data.operation) {
             case 'create':
-            case 'update':
-            case 'publish':
-            case 'unpublish': {
+            case 'update': {
                 if (isAsset) {
                     const hygraphAsset = await this.client.getAssetById(data.data.id);
                     if (!hygraphAsset) {
@@ -202,16 +204,8 @@ export class HygraphContentSource
                         assets: [asset]
                     });
                 } else {
-                    const hygraphEntry = await this.client.getEntryById({
-                        entryId: data.data.id,
-                        modelName,
-                        getModelByName: this.cache.getModelByName
-                    });
-                    if (!hygraphEntry) {
-                        return;
-                    }
                     const document = convertDocument({
-                        hygraphEntry,
+                        hygraphEntry: data.data as HygraphEntry,
                         manageUrl: (documentId, modelName) => {
                             const { models } = this.cache.getSchema();
                             const modelId = models.find(model => model.name === modelName)?.context?.internalId;
@@ -220,24 +214,75 @@ export class HygraphContentSource
                         getModelByName: this.cache.getModelByName,
                         logger: this.logger
                     });
+
                     if (!document) {
                         return;
                     }
+
+                    const cachedDoc = this.cache.getDocumentById(data.data.id);
+                    document.status = cachedDoc?.status ?? document.status;
+
                     this.cache.updateContent({
-                        documents: [document]
+                        documents: [document],
                     });
                 }
+
+                break;
             }
             case 'delete': {
                 if (isAsset) {
                     this.cache.updateContent({
-                        deletedDocumentIds: [data.data.id]
+                        deletedAssetIds: [data.data.id]
                     });
                 } else {
                     this.cache.updateContent({
-                        deletedAssetIds: [data.data.id]
+                        deletedDocumentIds: [data.data.id]
                     });
                 }
+
+                break;
+            }
+            case 'publish': {
+                if (isAsset) {
+                    const asset = this.cache.getAssetById(data.data.id);
+                    if (asset) {
+                        asset.status = 'published';
+                        this.cache.updateContent({
+                            assets: [asset]
+                        });
+                    }
+                } else {
+                    const document = this.cache.getDocumentById(data.data.id);
+                    if (document) {
+                        document.status = 'published';
+                        this.cache.updateContent({
+                            documents: [document]
+                        });
+                    }
+                }
+
+                break;
+            }
+            case 'unpublish': {
+                if (isAsset) {
+                    const asset = this.cache.getAssetById(data.data.id);
+                    if (asset) {
+                        asset.status = 'added';
+                        this.cache.updateContent({
+                            assets: [asset]
+                        });
+                    }
+                } else {
+                    const document = this.cache.getDocumentById(data.data.id);
+                    if (document) {
+                        document.status = 'added';
+                        this.cache.updateContent({
+                            documents: [document]
+                        });
+                    }
+                }
+
+                break;
             }
         }
     }
@@ -312,7 +357,7 @@ export class HygraphContentSource
     //     throw new Error('Method not implemented.');
     // }
 
-    uploadAsset(options: {
+    async uploadAsset(options: {
         url?: string | undefined;
         base64?: string | undefined;
         fileName: string;
@@ -320,8 +365,29 @@ export class HygraphContentSource
         locale?: string | undefined;
         userContext?: StackbitTypes.User | undefined;
     }): Promise<AssetWithContext> {
-        // TODO: implement asset uploading
-        throw new Error('Method not implemented.');
+        const assetId = await this.client.uploadAsset({
+            base64: options.base64!,
+            fileName: options.fileName,
+            mimeType: options.mimeType,
+        });
+
+        if (!assetId) {
+            throw new Error('Error uploading asset');
+        }
+
+        const hygraphAsset = await this.client.getAssetById(assetId);
+
+        if (!hygraphAsset) {
+            throw new Error('Error finding uploaded asset');
+        }
+
+        return convertAsset({
+            hygraphAsset,
+            manageUrl: (assetId) => {
+                const { assetModelId } = this.cache.getSchema().context;
+                return `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/assets/${assetModelId}/entry/${assetId}`;
+            }
+        });
     }
 
     updateAsset?(options: {

@@ -5,7 +5,7 @@ import { HygraphContentSource } from './hygraph-content-source/src';
 export default defineStackbitConfig({
   stackbitVersion: '~0.6.0',
   ssgName: 'nextjs',
-  nodeVersion: '18',
+  nodeVersion: '20',
   contentSources: [
     new HygraphContentSource({
       projectId: process.env.HYGRAPH_PROJECT_ID!,
