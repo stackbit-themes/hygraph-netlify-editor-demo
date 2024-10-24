@@ -42,7 +42,7 @@ export default function ProductList({
   return (
     <section className="bg-tertiary" data-sb-field-path={`.${index}`}>
       {title ? (
-        <h3 className="text-5xl pt-12 mb-12 font-bold font-title text-center">
+        <h3 className="text-5xl pt-12 mb-12 font-bold font-title text-center" data-sb-field-path=".title">
           {title}
         </h3>
       ) : null}
