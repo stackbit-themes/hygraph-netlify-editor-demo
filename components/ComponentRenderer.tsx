@@ -9,6 +9,7 @@ export default function ComponentRenderer({ data }: any) {
         return React.createElement(Component, {
           key: component.id,
           index,
+          fieldPath: `.${index}`,
           ...component,
         });
       })}

@@ -34,6 +34,7 @@ export default function ProductDetail({ product }: Props) {
               sizes="50vw"
               loading="eager"
               key={img.url}
+              data-sb-field-path=".img"
             />
           );
         })}
@@ -44,7 +45,7 @@ export default function ProductDetail({ product }: Props) {
             <span className="block text-primary font-bold font-title text-6xl">
               your
             </span>
-            <span className="block text-dark font-bold font-title text-6xl ml-8 -mt-2">
+            <span className="block text-dark font-bold font-title text-6xl ml-8 -mt-2" data-sb-field-path=".product">
               {product.name}
             </span>
           </h1>
