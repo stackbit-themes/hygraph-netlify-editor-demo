@@ -19,11 +19,23 @@ export default defineStackbitConfig({
   modelExtensions: [
     {
       type: 'page',
-      name: 'Page'
+      name: 'Page',
+      fields: [
+        {
+          name: 'slug',
+          required: true,
+        }
+      ]
     },
     {
       type: 'page',
-      name: 'Pdp'
+      name: 'Pdp',
+      fields: [
+        {
+          name: 'slug',
+          required: true,
+        }
+      ]
     }
   ],
   sitemap: (options) => {
