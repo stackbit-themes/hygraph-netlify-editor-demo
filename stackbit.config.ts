@@ -34,6 +34,10 @@ export default defineStackbitConfig({
         {
           name: 'slug',
           required: true,
+        },
+        {
+          name: 'productId',
+          default: '1',
         }
       ]
     }
