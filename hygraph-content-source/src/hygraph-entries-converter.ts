@@ -35,21 +35,21 @@ export const SystemDocumentFields = [
 
 export function convertDocuments({
     hygraphEntries,
-    manageUrl,
     getModelByName,
+    baseManageUrl,
     logger
 }: {
     hygraphEntries: HygraphEntry[];
-    manageUrl: (documentId: string, modelName: string) => string;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
+    baseManageUrl: string;
     logger: StackbitTypes.Logger;
 }): DocumentWithContext[] {
     return hygraphEntries
         .map((hygraphEntry: HygraphEntry) =>
             convertDocument({
                 hygraphEntry,
-                manageUrl,
                 getModelByName,
+                baseManageUrl,
                 logger
             })
         )
@@ -58,13 +58,13 @@ export function convertDocuments({
 
 export function convertDocument({
     hygraphEntry,
-    manageUrl,
     getModelByName,
+    baseManageUrl,
     logger
 }: {
     hygraphEntry: HygraphEntry;
-    manageUrl: (documentId: string, modelName: string) => string;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
+    baseManageUrl: string;
     logger: StackbitTypes.Logger;
 }): DocumentWithContext | undefined {
     const model = getModelByName(hygraphEntry.__typename);
@@ -75,12 +75,12 @@ export function convertDocument({
 
     const hygraphFields = _.omit(hygraphEntry, SystemDocumentFields);
     const nestedModelsInfo = {};
-
+    const modelId = model?.context?.internalId;
     return omitByUndefined({
         type: 'document' as const,
         id: hygraphEntry.id,
         modelName: hygraphEntry.__typename,
-        manageUrl: manageUrl(hygraphEntry.id, hygraphEntry.__typename),
+        manageUrl: `${baseManageUrl}/content/${modelId}/entry/${hygraphEntry.id}`,
         status: getDocumentStatus(hygraphEntry),
         createdAt: hygraphEntry.createdAt,
         createdBy: undefined, // TODO: fetch users and assign by IDs
@@ -219,6 +219,11 @@ function convertField({
             };
         }
         case 'image': {
+            nestedModelsInfo[fieldPath.join('.')] = {
+                id: fieldValue.id,
+                modelName: fieldValue.__typename,
+                isMultiModel: false
+            };
             return {
                 type: 'reference',
                 refType: 'asset',
@@ -276,20 +281,20 @@ function convertField({
                 items: !Array.isArray(fieldValue)
                     ? []
                     : fieldValue
-                        .map((itemValue, index) =>
-                            convertField({
-                                fieldValue: itemValue,
-                                modelField: modelField.items,
-                                nestedModelsInfo,
-                                getModelByName,
-                                fieldInfo,
-                                fieldPath: fieldPath.concat(index),
-                                logger
-                            })
-                        )
-                        .filter(
-                            (documentField): documentField is StackbitTypes.DocumentListFieldItems => !!documentField
-                        )
+                          .map((itemValue, index) =>
+                              convertField({
+                                  fieldValue: itemValue,
+                                  modelField: modelField.items,
+                                  nestedModelsInfo,
+                                  getModelByName,
+                                  fieldInfo,
+                                  fieldPath: fieldPath.concat(index),
+                                  logger
+                              })
+                          )
+                          .filter(
+                              (documentField): documentField is StackbitTypes.DocumentListFieldItems => !!documentField
+                          )
             };
         }
         case 'style': {
@@ -305,14 +310,11 @@ function convertField({
 
 function getDocumentStatus(hygraphEntry: HygraphEntry): StackbitTypes.DocumentStatus {
     const publishedDoc = hygraphEntry.documentInStages?.find((doc) => doc.stage === 'PUBLISHED');
-
     if (!publishedDoc) {
         return 'added';
     }
-
     if (publishedDoc.updatedAt === hygraphEntry.updatedAt) {
         return 'published';
     }
-
     return 'modified';
 }

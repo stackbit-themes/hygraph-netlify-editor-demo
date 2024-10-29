@@ -1,10 +1,10 @@
 import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
-import type * as HygraphTypes from './gql-types';
-import { SimpleFieldType, RelationalFieldType, VisibilityTypes } from './gql-types';
+import type * as HygraphTypes from './gql-management-types';
+import { SimpleFieldType, RelationalFieldType, VisibilityTypes } from './gql-management-types';
 import { omitByNil } from '@stackbit/utils';
 
-// The generated graphql types in the "gql-types.ts" file include the original field names.
+// The generated graphql types in the "gql-management-types.ts" file include the original field names.
 // However, some fields in the "schema.ts" query were aliased due to conflicts between types.
 // Remap some of the field names matching aliases in the query.
 type HygraphField =
@@ -43,6 +43,7 @@ type EnumOptionsById = Record<string, StackbitTypes.FieldEnumOptionObject[]>;
 
 export type SchemaContext = {
     assetModelId: string | null;
+    maxPaginationSize: number;
 };
 
 // Remap model.context to be required for easier typing.
@@ -179,9 +180,26 @@ function convertField({
         case 'SimpleField': {
             switch (field.fieldType) {
                 case SimpleFieldType.String: {
-                    return toFieldOrListField(field, {
-                        type: 'string'
-                    });
+                    const rendered = field.formConfig?.renderer;
+                    switch (rendered) {
+                        case 'GCMS_MULTI_LINE':
+                            return toFieldOrListField(field, {
+                                type: 'text'
+                            });
+                        case 'GCMS_SLUG':
+                            return toFieldOrListField(field, {
+                                type: 'slug'
+                            });
+                        case 'GCMS_MARKDOWN':
+                            return toFieldOrListField(field, {
+                                type: 'markdown'
+                            });
+                        case 'GCMS_SINGLE_LINE':
+                        default:
+                            return toFieldOrListField(field, {
+                                type: 'string'
+                            });
+                    }
                 }
                 case SimpleFieldType.Boolean: {
                     return toFieldOrListField(field, {
@@ -314,8 +332,8 @@ function convertField({
             }
         }
         case 'UnionField': {
-            // Multi-model, two-way references, the model with original forward-reference has "isMemberType: false".
-            // The model with te back-reference is also RelationalField but with "isMemberType: true".
+            // Multi-model, always two-way references, the model with original forward-reference has "isMemberType: false".
+            // The model with te back-reference is also UnionField but with "isMemberType: true".
             fieldInfoMap[field.apiId] = {
                 type: 'reference',
                 hygraphType: 'UnionField',
@@ -367,6 +385,8 @@ function convertFieldCommonProps(field: HygraphField): StackbitTypes.FieldCommon
         default: parseDefaultValue(field),
         hidden: field.visibility === VisibilityTypes.Hidden || undefined,
         readOnly: field.visibility === VisibilityTypes.ReadOnly || undefined
+        // TODO: implement validations
+        // validations: ...
     });
 }
 

@@ -6,6 +6,7 @@ query schemaQuery($projectId: ID!, $environmentName: String!) {
             __typename
             id
             name
+            maxPaginationSize
             environment(name: $environmentName) {
                 __typename
                 id
@@ -13,6 +14,9 @@ query schemaQuery($projectId: ID!, $environmentName: String!) {
                 name
                 contentModel {
                     __typename
+                    assetModel {
+                        id
+                    }
                     models {
                         ...ModelFragment
                     }
@@ -23,19 +27,9 @@ query schemaQuery($projectId: ID!, $environmentName: String!) {
                         ...EnumerationFragment
                     }
                 }
-                webhooks {
-                    ...WebhookFragment
-                }
             }
         }
     }
-}
-
-fragment WebhookFragment on Webhook {
-    __typename
-    id
-    name
-    url
 }
 
 fragment ModelFragment on IModel {
@@ -90,6 +84,9 @@ fragment FieldFragment on IField {
     isSystem
     visibility
     position
+    formConfig {
+        renderer
+    }
     ... on IRequireableField {
         isRequired
     }

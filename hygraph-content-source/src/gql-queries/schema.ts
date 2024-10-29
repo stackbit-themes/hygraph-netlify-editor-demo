@@ -9,14 +9,12 @@ export default gql`
                 __typename
                 id
                 name
+                maxPaginationSize
                 environment(name: $environmentName) {
                     __typename
                     id
                     displayName
                     name
-                    assetConfig {
-                        apiKey
-                    }
                     contentModel {
                         __typename
                         assetModel {
@@ -32,19 +30,9 @@ export default gql`
                             ...EnumerationFragment
                         }
                     }
-                    webhooks {
-                        ...WebhookFragment
-                    }
                 }
             }
         }
-    }
-
-    fragment WebhookFragment on Webhook {
-        __typename
-        id
-        name
-        url
     }
 
     fragment ModelFragment on IModel {
@@ -99,6 +87,9 @@ export default gql`
         isSystem
         visibility
         position
+        formConfig {
+            renderer
+        }
         ... on IRequireableField {
             isRequired
         }

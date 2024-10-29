@@ -9,17 +9,21 @@ dotenvConfig({ path: path.join(__dirname, '../.env') });
 
 const config: CodegenConfig = {
     overwrite: true,
-    schema: {
-        [process.env.HYGRAPH_MANAGEMENT_API!]: {
-            headers: {
-                Authorization: process.env.HYGRAPH_MANAGEMENT_TOKEN!
-            }
-        }
-    },
     generates: {
-        './src/gql-types.ts': {
+        './src/gql-management-types.ts': {
+            schema: {
+                [process.env.HYGRAPH_MANAGEMENT_API!]: {
+                    headers: {
+                        Authorization: process.env.HYGRAPH_MANAGEMENT_TOKEN!
+                    }
+                }
+            },
             plugins: ['typescript']
-        }
+        },
+        // './src/gql-content-types.ts': {
+        //     schema: process.env.HYGRAPH_ENDPOINT!,
+        //     plugins: ['typescript']
+        // }
     }
 };
 

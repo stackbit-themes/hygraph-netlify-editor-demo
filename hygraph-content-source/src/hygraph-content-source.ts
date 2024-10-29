@@ -1,9 +1,9 @@
 import type * as StackbitTypes from '@stackbit/types';
-import type * as HygraphTypes from './gql-types';
-import { HygraphApiClient, HygraphEntry, HygraphWebhook } from './hygraph-api-client';
+import type * as HygraphTypes from './gql-management-types';
+import { HygraphApiClient, HygraphEntry, HygraphAsset, HygraphWebhook } from './hygraph-api-client';
 import { convertModels, SchemaContext, ModelContext, ModelWithContext } from './hygraph-schema-converter';
 import { convertDocument, convertDocuments, DocumentContext, DocumentWithContext } from './hygraph-entries-converter';
-import { convertAssets, AssetContext, AssetWithContext, convertAsset } from './hygraph-assets-converter';
+import { convertAsset, convertAssets, AssetContext, AssetWithContext } from './hygraph-assets-converter';
 import { convertOperations, convertUpdateOperationFields } from './hygraph-operation-converter';
 
 interface HygraphContentSourceOptions {
@@ -38,7 +38,8 @@ interface HygraphContentSourceOptions {
 
 export class HygraphContentSource
     implements
-    StackbitTypes.ContentSourceInterface<unknown, SchemaContext, DocumentContext, AssetContext, ModelContext> {
+        StackbitTypes.ContentSourceInterface<unknown, SchemaContext, DocumentContext, AssetContext, ModelContext>
+{
     private projectId: string;
     private region: string;
     private environment: string;
@@ -47,6 +48,7 @@ export class HygraphContentSource
     private managementToken: string;
     private client!: HygraphApiClient;
     private logger!: StackbitTypes.Logger;
+    private userLogger!: StackbitTypes.Logger;
     private cache!: StackbitTypes.Cache<SchemaContext, DocumentContext, AssetContext, ModelContext>;
     private localDev!: boolean;
 
@@ -79,36 +81,16 @@ export class HygraphContentSource
     }
 
     getProjectManageUrl(): string {
-        return `https://app-${this.region.toLowerCase()}.hygraph.com/${this.projectId}/master`;
+        return `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.projectId}/${this.environment}`;
     }
     async init(
         options: StackbitTypes.InitOptions<SchemaContext, DocumentContext, AssetContext, ModelContext>
     ): Promise<void> {
         this.logger = options.logger.createLogger({ label: 'hygraph-content-source' });
+        this.userLogger = options.userLogger;
         this.cache = options.cache;
         this.localDev = options.localDev;
         this.logger.info('initializing...');
-
-        if (this.localDev) {
-            if (!options.webhookUrl) {
-                this.logger.info(
-                    'While developing locally, you can use webhooks to enable automatic ' +
-                    'content updated in the visual editor. First, start ngrok by typing "\x1b[32mngrok http 8090\x1b[0m" ' +
-                    'in a new terminal window. Ngrok will print a public url starting with https://... ' +
-                    'Use it to restart "stackbit dev", this time provide --csi-webhook-url argument ' +
-                    'by appending the "/_stackbit/onWebhook" to the ngrok\'s public URL. For example: ' +
-                    '"\x1b[32mstackbit dev --csi-webhook-url=https://REPLACE.ngrok.app/_stackbit/onWebhook\x1b[0m"'
-                );
-            } else {
-                this.logger.info(
-                    `The webhook is \x1b[32m${options.webhookUrl}\x1b[0m. ` +
-                    'Add this webhook to your Hygraph project. ' +
-                    'In webhook\'s configuration, set the method to POST, and check the "Include payload" option.'
-                );
-            }
-        } else {
-            options.userLogger.info(`Webhook URL: ${options.webhookUrl}`);
-        }
 
         this.client = new HygraphApiClient({
             projectId: this.projectId,
@@ -118,21 +100,36 @@ export class HygraphContentSource
             managementToken: this.managementToken,
             logger: this.logger
         });
+
+        if (this.localDev && !options.webhookUrl) {
+            this.logger.info(
+                'Detected local development without webhook URL' +
+                    '\n  While developing locally, you can use webhooks to enable automatic content updates in the visual editor. ' +
+                    '\n  First, install and start ngrok by typing "\x1b[32mngrok http 8090\x1b[0m" in a new terminal window. ' +
+                    '\n  Ngrok will print a public url in the form of https://xyz.ngrok.app or https://xyz.ngrok.io' +
+                    '\n  Restart "stackbit dev" with \x1b[32m--csi-webhook-url\x1b[0m argument. ' +
+                    '\n  Set the \x1b[32m--csi-webhook-url\x1b[0m argument to your ngrok\'s public URL ending with the "/_stackbit/onWebhook" path. ' +
+                    '\n  For example: "\x1b[32mstackbit dev --csi-webhook-url=https://REPLACE.ngrok.app/_stackbit/onWebhook\x1b[0m"\n'
+            );
+        } else {
+            await this.createWebhookIfNeeded(options.webhookUrl);
+        }
     }
 
-    async reset(): Promise<void> { }
-    async destroy(): Promise<void> { }
+    async reset(): Promise<void> {}
+    async destroy(): Promise<void> {}
 
     async hasAccess(options: {
         userContext?: StackbitTypes.User | undefined;
     }): Promise<{ hasConnection: boolean; hasPermissions: boolean }> {
+        // TODO: Once Hygraph adds OAuth capabilities,
+        //  use userContext.accessToken to authorize user
         return { hasConnection: true, hasPermissions: true };
     }
 
     async getSchema(): Promise<StackbitTypes.Schema<SchemaContext, ModelContext>> {
         this.logger.debug('fetching schema');
         const schema = await this.client.getSchema();
-
         const models = convertModels({
             models: schema.models as HygraphTypes.Model[],
             enumerations: schema.enumerations,
@@ -144,89 +141,157 @@ export class HygraphContentSource
             locales: [],
             context: {
                 assetModelId: schema.assetModelId,
+                maxPaginationSize: schema.maxPaginationSize
             }
         };
     }
 
     async getDocuments(options?: { syncContext?: unknown } | undefined): Promise<DocumentWithContext[]> {
         this.logger.debug('fetching documents');
-        const { models } = this.cache.getSchema();
-
-        const modelIdByNameMapping = models.reduce((acc, model) => {
-            acc[model.name] = model.context!.internalId;
-            return acc;
-        }, {} as Record<string, string>);
-
-        const hygraphEntries = await this.client.getEntries(models);
+        const {
+            models,
+            context: { maxPaginationSize }
+        } = this.cache.getSchema();
+        const hygraphEntries = await this.client.getEntries({ models, maxPaginationSize });
         return convertDocuments({
             hygraphEntries,
-            manageUrl: (documentId, modelName) => {
-                const modelId = modelIdByNameMapping[modelName];
-                return `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/content/${modelId}/entry/${documentId}`;
-            },
             getModelByName: this.cache.getModelByName,
+            baseManageUrl: this.getProjectManageUrl(),
             logger: this.logger
         });
     }
 
     async getAssets(): Promise<AssetWithContext[]> {
         this.logger.debug('fetching assets');
-        const hygraphAssets = await this.client.getAssets();
-        const { assetModelId } = this.cache.getSchema().context;
-
+        const {
+            context: { maxPaginationSize, assetModelId }
+        } = this.cache.getSchema();
+        const hygraphAssets = await this.client.getAssets({ maxPaginationSize });
         return convertAssets({
             hygraphAssets,
-            manageUrl: (assetId) => `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/assets/${assetModelId}/entry/${assetId}`,
+            assetModelId,
+            baseManageUrl: this.getProjectManageUrl()
         });
+    }
+
+    async createWebhookIfNeeded(webhookUrl?: string): Promise<void> {
+        if (!webhookUrl) {
+            this.userLogger.warn('webhookURL is not set, the visual editor may not work properly!');
+            return;
+        }
+        const result = await this.client.getWebhooks();
+        const existingWebhook = result.webhooks.find((webhook) => webhook.url === webhookUrl);
+        if (existingWebhook) {
+            this.logger.info(`The provided webhook \x1b[32m${webhookUrl}\x1b[0m. already exists in Hygraph.`);
+        } else {
+            this.logger.info(
+                `The provided webhook \x1b[32m${webhookUrl}\x1b[0m. does not exist in Hygraph. Creating a new webhook...`
+            );
+            const webhook = await this.client.createWebhook({
+                url: webhookUrl,
+                environmentId: result.environmentId
+            });
+            this.logger.info(`Created webhook, id: ${webhook.id}`);
+        }
     }
 
     async onWebhook({ data, headers }: { data: HygraphWebhook; headers: Record<string, string> }): Promise<void> {
         const modelName = data.data.__typename;
         const isAsset = modelName === 'Asset';
-        this.logger.info(`got webhook request, ${modelName}:${data.operation}`);
-        this.logger.info(`Webhook Data, ${JSON.stringify(data.data, null, 2)}`);
+        this.logger.debug(`got webhook request, ${modelName}:${data.operation}`);
+
+        function isNewerVersion(
+            hygraphItem: HygraphAsset | HygraphEntry,
+            cachedItem?: StackbitTypes.Asset | StackbitTypes.Document
+        ) {
+            if (data.operation === 'create') {
+                return true;
+            }
+            if (data.operation === 'update') {
+                return !cachedItem || cachedItem.updatedAt < hygraphItem.updatedAt;
+            }
+            if (data.operation === 'publish') {
+                const publishedItem = hygraphItem.documentInStages?.find((doc) => doc.stage === 'PUBLISHED');
+                return publishedItem && publishedItem.updatedAt === hygraphItem.updatedAt;
+            }
+            if (data.operation === 'unpublish') {
+                const publishedItem = hygraphItem.documentInStages?.find((doc) => doc.stage === 'PUBLISHED');
+                return !publishedItem;
+            }
+        }
+
         switch (data.operation) {
             case 'create':
-            case 'update': {
+            case 'update':
+            case 'publish':
+            case 'unpublish': {
                 if (isAsset) {
-                    const hygraphAsset = await this.client.getAssetById(data.data.id);
-                    if (!hygraphAsset) {
-                        return;
+                    const cachedAsset = this.cache.getAssetById(data.data.id);
+                    let hygraphAsset: HygraphAsset | undefined;
+                    let tries = 0;
+                    do {
+                        if (tries > 0) {
+                            this.logger.debug(
+                                'onWebhook => received older asset from Hygraph, waiting 500ms and retrying'
+                            );
+                            await new Promise((resolve) => setTimeout(resolve, 500));
+                        }
+                        hygraphAsset = await this.client.getAssetById(data.data.id);
+                        if (!hygraphAsset) {
+                            return;
+                        }
+                    } while (!isNewerVersion(hygraphAsset, cachedAsset) && ++tries < 10);
+                    if (!isNewerVersion(hygraphAsset, cachedAsset)) {
+                        this.logger.warn(
+                            `Could not fetch updated asset from Hygraph after receiving ${data.operation} webhook!`
+                        );
                     }
                     const asset = convertAsset({
                         hygraphAsset,
-                        manageUrl: (assetId) => {
-                            const { assetModelId } = this.cache.getSchema().context;
-                            return `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/assets/${assetModelId}/entry/${assetId}`;
-                        }
+                        assetModelId: this.cache.getSchema().context.assetModelId,
+                        baseManageUrl: this.getProjectManageUrl()
                     });
                     this.cache.updateContent({
                         assets: [asset]
                     });
                 } else {
+                    const cachedDocument = this.cache.getDocumentById(data.data.id);
+                    let hygraphEntry: HygraphEntry | undefined;
+                    let tries = 0;
+                    do {
+                        if (tries > 0) {
+                            this.logger.debug(
+                                'onWebhook => received older entry from Hygraph, waiting 500ms and retrying'
+                            );
+                            await new Promise((resolve) => setTimeout(resolve, 500));
+                        }
+                        hygraphEntry = await this.client.getEntryById({
+                            entryId: data.data.id,
+                            modelName,
+                            getModelByName: this.cache.getModelByName
+                        });
+                        if (!hygraphEntry) {
+                            return;
+                        }
+                    } while (!isNewerVersion(hygraphEntry, cachedDocument) && ++tries < 10);
+                    if (!isNewerVersion(hygraphEntry, cachedDocument)) {
+                        this.logger.warn(
+                            `Could not fetch updated entry from Hygraph after receiving ${data.operation} webhook!`
+                        );
+                    }
                     const document = convertDocument({
-                        hygraphEntry: data.data as HygraphEntry,
-                        manageUrl: (documentId, modelName) => {
-                            const { models } = this.cache.getSchema();
-                            const modelId = models.find(model => model.name === modelName)?.context?.internalId;
-                            return `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/content/${modelId}/entry/${documentId}`;
-                        },
+                        hygraphEntry,
                         getModelByName: this.cache.getModelByName,
+                        baseManageUrl: this.getProjectManageUrl(),
                         logger: this.logger
                     });
-
                     if (!document) {
                         return;
                     }
-
-                    const cachedDoc = this.cache.getDocumentById(data.data.id);
-                    document.status = cachedDoc?.status ?? document.status;
-
                     this.cache.updateContent({
-                        documents: [document],
+                        documents: [document]
                     });
                 }
-
                 break;
             }
             case 'delete': {
@@ -239,49 +304,6 @@ export class HygraphContentSource
                         deletedDocumentIds: [data.data.id]
                     });
                 }
-
-                break;
-            }
-            case 'publish': {
-                if (isAsset) {
-                    const asset = this.cache.getAssetById(data.data.id);
-                    if (asset) {
-                        asset.status = 'published';
-                        this.cache.updateContent({
-                            assets: [asset]
-                        });
-                    }
-                } else {
-                    const document = this.cache.getDocumentById(data.data.id);
-                    if (document) {
-                        document.status = 'published';
-                        this.cache.updateContent({
-                            documents: [document]
-                        });
-                    }
-                }
-
-                break;
-            }
-            case 'unpublish': {
-                if (isAsset) {
-                    const asset = this.cache.getAssetById(data.data.id);
-                    if (asset) {
-                        asset.status = 'added';
-                        this.cache.updateContent({
-                            assets: [asset]
-                        });
-                    }
-                } else {
-                    const document = this.cache.getDocumentById(data.data.id);
-                    if (document) {
-                        document.status = 'added';
-                        this.cache.updateContent({
-                            documents: [document]
-                        });
-                    }
-                }
-
                 break;
             }
         }
@@ -297,7 +319,8 @@ export class HygraphContentSource
         const data = convertUpdateOperationFields({
             updateOperationFields: options.updateOperationFields,
             model: options.model,
-            getModelByName: this.cache.getModelByName
+            getModelByName: this.cache.getModelByName,
+            getModelNameForDocumentId: this._getModelNameForDocumentId.bind(this)
         });
         const result = await this.client.createEntry({
             modelName: options.model.name,
@@ -314,7 +337,8 @@ export class HygraphContentSource
         const data = convertOperations({
             operations: options.operations,
             document: options.document,
-            getModelByName: this.cache.getModelByName
+            getModelByName: this.cache.getModelByName,
+            getModelNameForDocumentId: this._getModelNameForDocumentId.bind(this)
         });
         await this.client.updateEntry({
             entryId: options.document.id,
@@ -333,30 +357,6 @@ export class HygraphContentSource
         });
     }
 
-    // archiveDocument?(options: { document: DocumentWithContext; userContext?: StackbitTypes.User | undefined; }): Promise<void> {
-    //     throw new Error('Method not implemented.');
-    // }
-
-    // unarchiveDocument?(options: { document: DocumentWithContext; userContext?: StackbitTypes.User | undefined; }): Promise<void> {
-    //     throw new Error('Method not implemented.');
-    // }
-
-    // getScheduledActions?(): Promise<ScheduledAction[]> {
-    //     throw new Error('Method not implemented.');
-    // }
-
-    // createScheduledAction?(options: { name: string; action: ScheduledActionActionType; documentIds: string[]; executeAt: string; userContext?: StackbitTypes.User | undefined; }): Promise<{ newScheduledActionId: string; }> {
-    //     throw new Error('Method not implemented.');
-    // }
-
-    // cancelScheduledAction?(options: { scheduledActionId: string; userContext?: StackbitTypes.User | undefined; }): Promise<{ cancelledScheduledActionId: string; }> {
-    //     throw new Error('Method not implemented.');
-    // }
-
-    // updateScheduledAction?(options: { scheduledActionId: string; name?: string | undefined; documentIds?: string[] | undefined; executeAt?: string | undefined; userContext?: StackbitTypes.User | undefined; }): Promise<{ updatedScheduledActionId: string; }> {
-    //     throw new Error('Method not implemented.');
-    // }
-
     async uploadAsset(options: {
         url?: string | undefined;
         base64?: string | undefined;
@@ -366,27 +366,33 @@ export class HygraphContentSource
         userContext?: StackbitTypes.User | undefined;
     }): Promise<AssetWithContext> {
         const assetId = await this.client.uploadAsset({
-            base64: options.base64!,
             fileName: options.fileName,
             mimeType: options.mimeType,
+            base64: options.base64,
+            url: options.url
         });
 
         if (!assetId) {
             throw new Error('Error uploading asset');
         }
 
-        const hygraphAsset = await this.client.getAssetById(assetId);
-
-        if (!hygraphAsset) {
-            throw new Error('Error finding uploaded asset');
-        }
+        let hygraphAsset: HygraphAsset | undefined;
+        let tries = 0;
+        do {
+            if (tries > 0) {
+                this.logger.debug('uploadAsset => asset is being created, waiting 500ms and retrying');
+                await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+            hygraphAsset = await this.client.getAssetById(assetId);
+            if (!hygraphAsset) {
+                throw new Error('Error finding uploaded asset');
+            }
+        } while (hygraphAsset.upload.status === 'ASSET_CREATE_PENDING' && ++tries < 10);
 
         return convertAsset({
             hygraphAsset,
-            manageUrl: (assetId) => {
-                const { assetModelId } = this.cache.getSchema().context;
-                return `https://studio-${this.region.toLowerCase()}.hygraph.com/${this.getProjectId()}/${this.getProjectEnvironment()}/assets/${assetModelId}/entry/${assetId}`;
-            }
+            assetModelId: this.cache.getSchema().context.assetModelId,
+            baseManageUrl: this.getProjectManageUrl()
         });
     }
 
@@ -436,11 +442,54 @@ export class HygraphContentSource
         }
     }
 
-    // getDocumentVersions?(options: { documentId: string; }): Promise<{ versions: DocumentVersion[]; }> {
-    //     throw new Error('Method not implemented.');
-    // }
+    /*
+     * Hygraph does not support archiving/unatchiving documents.
+     * When it does, implement the following methods to enable this capability in Netlify visual editor.
+     *
+    archiveDocument?(options: { document: DocumentWithContext; userContext?: StackbitTypes.User | undefined; }): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
 
-    // getDocumentForVersion?(options: { documentId: string; versionId: string; }): Promise<{ version: DocumentVersionWithDocument; }> {
-    //     throw new Error('Method not implemented.');
-    // }
+    unarchiveDocument?(options: { document: DocumentWithContext; userContext?: StackbitTypes.User | undefined; }): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
+    */
+
+    /*
+     * Hygraph does support scheduled publishing.
+     * TODO: Implement the following methods
+
+    getScheduledActions?(): Promise<ScheduledAction[]> {
+        throw new Error('Method not implemented.');
+    }
+
+    createScheduledAction?(options: { name: string; action: ScheduledActionActionType; documentIds: string[]; executeAt: string; userContext?: StackbitTypes.User | undefined; }): Promise<{ newScheduledActionId: string; }> {
+        throw new Error('Method not implemented.');
+    }
+
+    cancelScheduledAction?(options: { scheduledActionId: string; userContext?: StackbitTypes.User | undefined; }): Promise<{ cancelledScheduledActionId: string; }> {
+        throw new Error('Method not implemented.');
+    }
+
+    updateScheduledAction?(options: { scheduledActionId: string; name?: string | undefined; documentIds?: string[] | undefined; executeAt?: string | undefined; userContext?: StackbitTypes.User | undefined; }): Promise<{ updatedScheduledActionId: string; }> {
+        throw new Error('Method not implemented.');
+    }
+    */
+
+    /*
+     * Hygraph does support document versioning.
+     * TODO: Implement the following methods
+    getDocumentVersions?(options: { documentId: string; }): Promise<{ versions: DocumentVersion[]; }> {
+        throw new Error('Method not implemented.');
+    }
+
+    getDocumentForVersion?(options: { documentId: string; versionId: string; }): Promise<{ version: DocumentVersionWithDocument; }> {
+        throw new Error('Method not implemented.');
+    }
+    */
+
+    _getModelNameForDocumentId(documentId: string) {
+        const document = this.cache.getDocumentById(documentId);
+        return document?.modelName;
+    }
 }
