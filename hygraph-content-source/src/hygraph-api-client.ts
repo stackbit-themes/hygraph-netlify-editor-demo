@@ -477,7 +477,7 @@ export class HygraphApiClient {
           }`;
 
         try {
-            return this.contentClient.request(gql).then((response) => { return response.createAsset; });
+            return this.contentClient.request(gql).then((response: any) => { return response.createAsset; });
         } catch (error: any) {
             this.logger.warn(`Error creating asset upload:\n${error.toString()}`);
             throw new Error(`Error creating asset upload: ${error.message}`);
