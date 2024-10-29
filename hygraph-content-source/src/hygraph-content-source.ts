@@ -366,9 +366,10 @@ export class HygraphContentSource
         userContext?: StackbitTypes.User | undefined;
     }): Promise<AssetWithContext> {
         const assetId = await this.client.uploadAsset({
-            base64: options.base64!,
+            base64: options.base64,
             fileName: options.fileName,
             mimeType: options.mimeType,
+            url: options.url,
         });
 
         if (!assetId) {

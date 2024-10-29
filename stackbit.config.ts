@@ -45,8 +45,9 @@ export default defineStackbitConfig({
   sitemap: (options) => {
     const pageModels = ['Page', 'Pdp'];
     return options.documents.filter((document) => pageModels.includes(document.modelName)).map((document) => {
-      const slug = (document.fields.slug as StackbitTypes.DocumentStringLikeFieldNonLocalized).value;
+      const slug = (document.fields.slug as StackbitTypes.DocumentStringLikeFieldNonLocalized)?.value;
       const urlPath = slug === 'home' ? '/' : document.modelName === 'Pdp' ? `/pdp/${slug}` : slug;
+
       return {
         urlPath: urlPath,
         document: document

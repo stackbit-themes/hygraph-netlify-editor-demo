@@ -73,6 +73,7 @@ export interface HygraphApiClientOptions {
 
 export interface HygraphAssetUploadOptions {
     fileName: string;
+
     base64?: string;
     mimeType: string;
     url?: string;
