@@ -19,18 +19,25 @@ export default defineStackbitConfig({
   modelExtensions: [
     {
       type: 'page',
-      name: 'Page'
+      name: 'Page',
+      fields: [
+        { name: 'slug', required: true },
+      ],
     },
     {
       type: 'page',
-      name: 'Pdp'
+      name: 'Pdp',
+      fields: [
+        { name: 'slug', required: true },
+      ],
     }
   ],
   sitemap: (options) => {
     const pageModels = ['Page', 'Pdp'];
     return options.documents.filter((document) => pageModels.includes(document.modelName)).map((document) => {
-      const slug = (document.fields.slug as StackbitTypes.DocumentStringLikeFieldNonLocalized).value;
+      const slug = (document.fields.slug as StackbitTypes.DocumentStringLikeFieldNonLocalized)?.value;
       const urlPath = slug === 'home' ? '/' : document.modelName === 'Pdp' ? `/pdp/${slug}` : slug;
+
       return {
         urlPath: urlPath,
         document: document
