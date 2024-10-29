@@ -365,6 +365,8 @@ export class HygraphContentSource
         locale?: string | undefined;
         userContext?: StackbitTypes.User | undefined;
     }): Promise<AssetWithContext> {
+        this.logger.info(`[UPLOAD ASSET] >>> ${JSON.stringify(options, null, 2)}`);
+
         const assetId = await this.client.uploadAsset({
             base64: options.base64,
             fileName: options.fileName,
