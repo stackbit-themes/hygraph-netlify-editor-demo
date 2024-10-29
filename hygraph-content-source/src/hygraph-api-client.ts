@@ -73,7 +73,6 @@ export interface HygraphApiClientOptions {
 
 export interface HygraphAssetUploadOptions {
     fileName: string;
-
     base64?: string;
     mimeType: string;
     url?: string;
@@ -417,6 +416,12 @@ export class HygraphApiClient {
                 return undefined;
             }
 
+            const imageData = await generateBlobData(options);
+
+            if (!imageData) {
+                throw new Error('Error generating blob data for asset upload');
+            }
+
             const formData = new FormData();
 
             formData.append('X-Amz-Date', requestPostData.date);
@@ -427,7 +432,7 @@ export class HygraphApiClient {
             formData.append('X-Amz-Credential', requestPostData.credential);
             formData.append('X-Amz-Security-Token', requestPostData.securityToken);
 
-            formData.append('file', generateBlobData(options));
+            formData.append('file', imageData);
 
             const headers = new Headers();
             headers.append('Content-Disposition', `form-data; name="file"; filename="${options.fileName}"`);
