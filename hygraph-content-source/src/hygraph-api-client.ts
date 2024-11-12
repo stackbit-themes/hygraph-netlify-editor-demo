@@ -73,8 +73,10 @@ export interface HygraphApiClientOptions {
 
 export interface HygraphAssetUploadOptions {
     fileName: string;
-    base64: string;
+
+    base64?: string;
     mimeType: string;
+    url?: string;
 }
 
 export interface HygraphAssetUploadResponse {
@@ -425,7 +427,7 @@ export class HygraphApiClient {
             formData.append('X-Amz-Credential', requestPostData.credential);
             formData.append('X-Amz-Security-Token', requestPostData.securityToken);
 
-            formData.append('file', base64toBlob(options.base64, options.mimeType));
+            formData.append('file', generateBlobData(options));
 
             const headers = new Headers();
             headers.append('Content-Disposition', `form-data; name="file"; filename="${options.fileName}"`);
@@ -475,7 +477,7 @@ export class HygraphApiClient {
           }`;
 
         try {
-            return this.contentClient.request(gql).then((response) => { return response.createAsset; });
+            return this.contentClient.request(gql).then((response: any) => { return response.createAsset; });
         } catch (error: any) {
             this.logger.warn(`Error creating asset upload:\n${error.toString()}`);
             throw new Error(`Error creating asset upload: ${error.message}`);
@@ -749,4 +751,16 @@ function base64toBlob(b64Data: string, contentType = '', sliceSize = 512) {
 
     const blob = new Blob(byteArrays, { type: contentType });
     return blob;
+}
+
+async function generateBlobData({ base64, mimeType, url }: HygraphAssetUploadOptions) {
+    try {
+        if (base64) {
+            return base64toBlob(base64, mimeType);
+        } else if (url) {
+            return await fetch(url).then((response) => response.blob());
+        }
+    } catch (err: any) {
+        throw new Error(`Error generating blob data: ${err.message}`);
+    }
 }

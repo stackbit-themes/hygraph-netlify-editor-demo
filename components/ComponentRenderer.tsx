@@ -4,11 +4,12 @@ import { getComponentForName } from "@/helpers";
 export default function ComponentRenderer({ data }: any) {
   return (
     <>
-      {data.map((component: any, index: number) => {
+      {data?.map((component: any, index: number) => {
         const Component = getComponentForName(component.__typename);
         return React.createElement(Component, {
           key: component.id,
           index,
+          fieldPath: `.${index}`,
           ...component,
         });
       })}

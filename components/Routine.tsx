@@ -37,24 +37,24 @@ export default function Routine({
       <div className="w-full bg-tertiary p-8 lg:max-w-2xl lg:absolute top-32 right-32">
         <h2 className="mb-8 font-title">
           {chapeau ? (
-            <span className="block text-primary font-bold text-4xl lg:text-6xl">
+            <span className="block text-primary font-bold text-4xl lg:text-6xl" data-sb-field-path=".chapeau">
               {chapeau}
             </span>
           ) : null}
 
           {title ? (
-            <span className="block text-dark font-bold text-4xl lg:text-6xl ml-8 -mt-2">
+            <span className="block text-dark font-bold text-4xl lg:text-6xl ml-8 -mt-2" data-sb-field-path=".title">
               {title}
             </span>
           ) : null}
         </h2>
 
         {description ? (
-          <p className="text-xl ml-8 mb-8">{description}</p>
+          <p className="text-xl ml-8 mb-8" data-sb-field-path=".description">{description}</p>
         ) : null}
 
         {url ? (
-          <a href={url} className="inline-block cta ml-8">
+          <a href={url} className="inline-block cta ml-8" data-sb-field-path=".cta">
             {cta}
           </a>
         ) : null}
