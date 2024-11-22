@@ -21,15 +21,25 @@ export default defineStackbitConfig({
       type: 'page',
       name: 'Page',
       fields: [
-        { name: 'slug', required: true },
-      ],
+        {
+          name: 'slug',
+          required: true,
+        }
+      ]
     },
     {
       type: 'page',
       name: 'Pdp',
       fields: [
-        { name: 'slug', required: true },
-      ],
+        {
+          name: 'slug',
+          required: true,
+        },
+        {
+          name: 'productId',
+          default: '1',
+        }
+      ]
     }
   ],
   sitemap: (options) => {

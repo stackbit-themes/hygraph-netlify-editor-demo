@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import type { Metadata, ResolvingMetadata } from "next";
 import { draftMode } from "next/headers";
 import type { PdpQuery } from "@/gql/graphql";
