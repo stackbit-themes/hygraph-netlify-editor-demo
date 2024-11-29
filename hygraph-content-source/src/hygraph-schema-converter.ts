@@ -9,35 +9,35 @@ import { omitByNil } from '@stackbit/utils';
 // Remap some of the field names matching aliases in the query.
 type HygraphField =
     | (Omit<HygraphTypes.SimpleField, 'type' | 'validations'> & {
-          fieldType: HygraphTypes.SimpleField['type'];
-          validations?:
-              | Exclude<HygraphTypes.SimpleFieldValidations, HygraphTypes.FloatFieldValidations>
-              | (Omit<HygraphTypes.FloatFieldValidations, 'range'> & {
-                    floatRange?: HygraphTypes.FloatFieldValidations['range'];
-                });
-      })
+        fieldType: HygraphTypes.SimpleField['type'];
+        validations?:
+        | Exclude<HygraphTypes.SimpleFieldValidations, HygraphTypes.FloatFieldValidations>
+        | (Omit<HygraphTypes.FloatFieldValidations, 'range'> & {
+            floatRange?: HygraphTypes.FloatFieldValidations['range'];
+        });
+    })
     | (Omit<HygraphTypes.EnumerableField, 'type' | 'initialValue'> & {
-          enumType: HygraphTypes.EnumerableFieldType;
-          defaultEnumerationValue?: HygraphTypes.EnumerableField['initialValue'];
-      })
+        enumType: HygraphTypes.EnumerableFieldType;
+        defaultEnumerationValue?: HygraphTypes.EnumerableField['initialValue'];
+    })
     | (Omit<HygraphTypes.ComponentField, 'type'> & {
-          componentType: HygraphTypes.ComponentField['type'];
-      })
+        componentType: HygraphTypes.ComponentField['type'];
+    })
     | (Omit<HygraphTypes.ComponentUnionField, 'type'> & {
-          componentUnionType: HygraphTypes.ComponentUnionField['type'];
-      })
+        componentUnionType: HygraphTypes.ComponentUnionField['type'];
+    })
     | (Omit<HygraphTypes.RelationalField, 'type'> & {
-          relationType: HygraphTypes.RelationalFieldType;
-      })
+        relationType: HygraphTypes.RelationalFieldType;
+    })
     | (Omit<HygraphTypes.UniDirectionalRelationalField, 'type'> & {
-          relationType: HygraphTypes.RelationalFieldType;
-      })
+        relationType: HygraphTypes.RelationalFieldType;
+    })
     | (Omit<HygraphTypes.UnionField, 'type'> & {
-          unionType: HygraphTypes.UnionField['type'];
-      })
+        unionType: HygraphTypes.UnionField['type'];
+    })
     | (Omit<HygraphTypes.RemoteField, 'type'> & {
-          remoteType: HygraphTypes.RemoteField['type'];
-      });
+        remoteType: HygraphTypes.RemoteField['type'];
+    });
 
 type EnumOptionsById = Record<string, StackbitTypes.FieldEnumOptionObject[]>;
 
@@ -175,10 +175,12 @@ function convertField({
     const warningMessage = (reason: string) => {
         return `Cannot convert '${field.apiId}' field of type '${field.__typename}' in ${debugContext.modelType} '${debugContext.modelName}'. ${reason}`;
     };
+
     switch (field.__typename) {
         case 'SimpleField': {
             switch (field.fieldType) {
                 case SimpleFieldType.String: {
+                    
                     return toFieldOrListField(field, {
                         type: 'string'
                     });
@@ -334,6 +336,7 @@ function convertField({
             return null;
         }
         default: {
+            //@ts-ignore
             logger.warn(warningMessage(`Unsupported field type: ${field.__typename}.`));
             return null;
         }
@@ -345,16 +348,16 @@ function toFieldOrListField(
 ): StackbitTypes.Field {
     return hgField.isList
         ? {
-              type: 'list',
-              ...convertFieldCommonProps(hgField),
-              items: {
-                  ...fieldSpecificProps
-              }
-          }
+            type: 'list',
+            ...convertFieldCommonProps(hgField),
+            items: {
+                ...fieldSpecificProps
+            }
+        }
         : {
-              ...fieldSpecificProps,
-              ...convertFieldCommonProps(hgField)
-          };
+            ...fieldSpecificProps,
+            ...convertFieldCommonProps(hgField)
+        };
 }
 
 function convertFieldCommonProps(field: HygraphField): StackbitTypes.FieldCommonProps {

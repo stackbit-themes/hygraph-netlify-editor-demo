@@ -183,8 +183,7 @@ export class HygraphContentSource
     async onWebhook({ data, headers }: { data: HygraphWebhook; headers: Record<string, string> }): Promise<void> {
         const modelName = data.data.__typename;
         const isAsset = modelName === 'Asset';
-        this.logger.info(`got webhook request, ${modelName}:${data.operation}`);
-        this.logger.info(`Webhook Data, ${JSON.stringify(data.data, null, 2)}`);
+
         switch (data.operation) {
             case 'create':
             case 'update': {
@@ -299,6 +298,7 @@ export class HygraphContentSource
             model: options.model,
             getModelByName: this.cache.getModelByName
         });
+
         const result = await this.client.createEntry({
             modelName: options.model.name,
             data: data
@@ -366,9 +366,10 @@ export class HygraphContentSource
         userContext?: StackbitTypes.User | undefined;
     }): Promise<AssetWithContext> {
         const assetId = await this.client.uploadAsset({
-            base64: options.base64!,
+            base64: options.base64,
             fileName: options.fileName,
             mimeType: options.mimeType,
+            url: options.url,
         });
 
         if (!assetId) {
@@ -380,6 +381,17 @@ export class HygraphContentSource
         if (!hygraphAsset) {
             throw new Error('Error finding uploaded asset');
         }
+
+        let retry = 5;
+        let status;
+
+        do {
+            status = await this.client.getAssetUploadStatusById(assetId);
+            if (status === 'ASSET_CREATE_PENDING') {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                retry--;
+            }
+        } while (status === 'ASSET_CREATE_PENDING' && retry >= 1);
 
         return convertAsset({
             hygraphAsset,

@@ -53,6 +53,12 @@ export type HygraphAsset = {
     height: number;
 };
 
+export type HygraphAssetUploadStatus = {
+    upload: {
+        status: string;
+    }
+}
+
 export type HygraphWebhook = {
     operation: 'create' | 'update' | 'publish' | 'unpublish' | 'delete';
     data: HygraphEntry | HygraphAsset;
@@ -73,8 +79,9 @@ export interface HygraphApiClientOptions {
 
 export interface HygraphAssetUploadOptions {
     fileName: string;
-    base64: string;
+    base64?: string;
     mimeType: string;
+    url?: string;
 }
 
 export interface HygraphAssetUploadResponse {
@@ -236,6 +243,7 @@ export class HygraphApiClient {
             }
         };
         const query = convertASTToQuery(queryAst);
+
         try {
             const result = (await this.contentClient.request(query)) as Record<string, { id: string }>;
             const entry = result[createModelName];
@@ -404,6 +412,30 @@ export class HygraphApiClient {
         }
     }
 
+    async getAssetUploadStatusById(assetId: string): Promise<string | undefined> {
+        const queryAst: any = {
+            query: {
+                asset: {
+                    __arguments: {
+                        stage: 'DRAFT',
+                        where: { id: assetId }
+                    },
+                    upload: {
+                        status: 1,
+                    }
+                }
+            }
+        };
+        const query = convertASTToQuery(queryAst);
+        try {
+            const result = (await this.contentClient.request(query)) as { asset: HygraphAssetUploadStatus };
+            return result.asset?.upload.status;
+        } catch (error: any) {
+            this.logger.warn(`Error fetching asset:\n${error.toString()}\nQuery:\n${query}`);
+            return undefined;
+        }
+    }
+
     async uploadAsset(options: HygraphAssetUploadOptions) {
         try {
             const createUploadResponse = await this.createUpload({ fileName: options.fileName });
@@ -413,6 +445,12 @@ export class HygraphApiClient {
             if (error) {
                 this.logger.warn(`Error creating asset upload:\n${error.message}`);
                 return undefined;
+            }
+
+            const imageData = await generateBlobData(options);
+
+            if (!imageData) {
+                throw new Error('Error generating blob data for asset upload');
             }
 
             const formData = new FormData();
@@ -425,7 +463,7 @@ export class HygraphApiClient {
             formData.append('X-Amz-Credential', requestPostData.credential);
             formData.append('X-Amz-Security-Token', requestPostData.securityToken);
 
-            formData.append('file', base64toBlob(options.base64, options.mimeType));
+            formData.append('file', imageData);
 
             const headers = new Headers();
             headers.append('Content-Disposition', `form-data; name="file"; filename="${options.fileName}"`);
@@ -475,7 +513,7 @@ export class HygraphApiClient {
           }`;
 
         try {
-            return this.contentClient.request(gql).then((response) => { return response.createAsset; });
+            return this.contentClient.request(gql).then((response: any) => { return response.createAsset; });
         } catch (error: any) {
             this.logger.warn(`Error creating asset upload:\n${error.toString()}`);
             throw new Error(`Error creating asset upload: ${error.message}`);
@@ -719,8 +757,12 @@ function serializeQueryArg(object: Record<string, any>) {
     const serialized = _.reduce(
         object,
         (result, value, key) => {
-            if (_.isPlainObject(value)) {
+            if (_.isArray(value)) {
+                value = `[${value.map(serializeQueryArg).join(', ')}]`;
+            } else if (_.isPlainObject(value)) {
                 value = serializeQueryArg(value);
+            } else if (typeof value === 'string' && value.includes('\n')) {
+                value = `"""${value}"""`;
             } else if (typeof value === 'string') {
                 value = `"${value}"`;
             }
@@ -728,6 +770,7 @@ function serializeQueryArg(object: Record<string, any>) {
         },
         ''
     );
+
     return `{ ${serialized} }`;
 }
 
@@ -749,4 +792,16 @@ function base64toBlob(b64Data: string, contentType = '', sliceSize = 512) {
 
     const blob = new Blob(byteArrays, { type: contentType });
     return blob;
+}
+
+async function generateBlobData({ base64, mimeType, url }: HygraphAssetUploadOptions) {
+    try {
+        if (base64) {
+            return base64toBlob(base64, mimeType);
+        } else if (url) {
+            return await fetch(url).then((response) => response.blob());
+        }
+    } catch (err: any) {
+        throw new Error(`Error generating blob data: ${err.message}`);
+    }
 }
