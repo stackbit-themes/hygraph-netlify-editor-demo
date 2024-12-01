@@ -1,6 +1,6 @@
-import _ from 'lodash';
+import _, { before } from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
-import { DocumentWithContext } from './hygraph-entries-converter';
+import { DocumentWithContext, NestedModelsInfo } from './hygraph-entries-converter';
 import { ModelWithContext } from './hygraph-schema-converter';
 
 export function convertUpdateOperationFields({
@@ -84,6 +84,7 @@ export function convertOperations({
                             const fieldPathStr = operation.fieldPath.concat(operation.index).join('.');
                             insertBeforeId = document.context.nestedModelsInfo[fieldPathStr]?.id;
                         }
+
                         return convertUpdateOperationFieldToValue({
                             updateOperationField: operation.item,
                             fieldName,
@@ -107,6 +108,7 @@ export function convertOperations({
                         if (operation.modelField.items.type === 'model') {
                             const fieldPathStr = fieldPath.join('.');
                             const nestedModelInfo = document.context.nestedModelsInfo[fieldPathStr];
+
                             if (!nestedModelInfo) {
                                 throw new Error(
                                     `Error updating document, component ID at path ${fieldPathStr} not found`
@@ -116,8 +118,8 @@ export function convertOperations({
                             return {
                                 delete: nestedModelInfo.isMultiModel
                                     ? {
-                                          [nestedModelInfo.modelName]: deleteObject
-                                      }
+                                        [nestedModelInfo.modelName]: deleteObject
+                                    }
                                     : deleteObject
                             };
                         } else {
@@ -129,11 +131,98 @@ export function convertOperations({
                 break;
             }
             case 'reorder': {
-                throw new Error(`Updating lists is not supported yet.`);
+                const orderData = getReorderData(operation.order);
+
+                const fieldPath = operation.fieldPath;
+
+                const fieldPathStr = fieldPath.join('.');
+                const nestedModelInfo = document.context.nestedModelsInfo[fieldPathStr] || getModelByName(document.modelName)?.context?.fieldInfoMap[fieldPathStr];
+                const isMultiModel = nestedModelInfo?.isMultiModel;
+
+                const itemPath = `${operation.fieldPath.join('.')}.${orderData.itemIndex}`;
+                const modelName = document.context.nestedModelsInfo[itemPath]!.modelName
+
+                const positionObject = generatePositionObject(orderData, document.context.nestedModelsInfo, fieldPath);
+
+                const reorderObject = {
+                    where: {
+                        id: document.context.nestedModelsInfo[itemPath]!.id,
+                    },
+                    position: positionObject
+                };
+                            
+                const data = createUpdateObjectFromFieldPath({
+                    fieldPath: fieldPath,
+                    document,
+                    getModelByName,
+                    value: () => ({
+                        update: isMultiModel
+                        ? {
+                            [modelName]: reorderObject
+                        }
+                        : reorderObject
+                    })
+                });
+
+                _.merge(result, data);
+                break;
             }
         }
     }
     return result;
+}
+
+function generatePositionObject(orderData: { newPosition: number; itemIndex: number}, nestedModelInfo: NestedModelsInfo, fieldPath: (String | number)[]) {
+    if (orderData.newPosition === 0) {
+        return {
+            start: true
+        };
+    }
+
+    const fieldPathStr = fieldPath.join('.');
+    const itemsCount = Object.keys(nestedModelInfo).filter((key) => new RegExp(`^${fieldPathStr}\.(\\d)+$`).test(key)).length;
+
+    if (itemsCount === orderData.newPosition + 1) {
+        return {
+            end: true
+        };
+    }
+    
+    const itemPath = `${fieldPath.join('.')}.${orderData.newPosition}`;
+    const id = nestedModelInfo[itemPath]!.id;
+
+    return {
+        before: id
+    }
+}
+
+function getReorderData(arr: any[]) {
+    return arr.reduce((acc, curr, idx, arr) => {
+        if (acc) {
+            return acc;
+        }
+
+        if (idx === 0 && curr > arr[idx + 1]) {
+            return {
+                newPosition: idx,
+                itemIndex: curr,
+            };
+        }
+
+        if (curr < arr[idx - 1] && idx < arr.length - 1) {
+            return {
+                newPosition: idx - 1,
+                itemIndex: arr[idx - 1],
+            };
+        }
+
+        if (idx === arr.length - 1) {
+            return {
+                newPosition: idx ,
+                itemIndex: curr,
+            };
+        }
+    }, null);
 }
 
 function createUpdateObjectFromFieldPath({
@@ -188,8 +277,8 @@ function createUpdateObjectFromFieldPath({
             currValue[lastFieldName!] = {
                 update: nestedModelInfo.isMultiModel
                     ? {
-                          [nestedModelInfo.modelName]: update
-                      }
+                        [nestedModelInfo.modelName]: update
+                    }
                     : update
             };
         }
@@ -234,6 +323,7 @@ function convertUpdateOperationFieldToValue({
             {}
         );
         const modelInfo = model.context?.fieldInfoMap[fieldName];
+
         if (isListItem) {
             if (insertBeforeId) {
                 data = {
@@ -249,17 +339,25 @@ function convertUpdateOperationFieldToValue({
         return {
             create: modelInfo?.isMultiModel
                 ? {
-                      [updateOperationField.modelName]: data
-                  }
+                    [updateOperationField.modelName]: data
+                }
                 : data
         };
     } else if (updateOperationField.type === 'reference') {
         return { connect: { id: updateOperationField.refId } };
-        // throw new Error(`Setting references is not supported yet.`);
     } else if (updateOperationField.type === 'cross-reference') {
         throw new Error(`Setting cross-reference is not supported yet.`);
     } else if (updateOperationField.type === 'list') {
-        throw new Error(`Setting lists not supported yet.`);
+        const listData = updateOperationField.items.map((item) => convertUpdateOperationFieldToValue({
+            updateOperationField: item,
+            fieldName,
+            model,
+            getModelByName
+        })).map((item) => item.create ?? item);
+
+        return {
+            create: listData,
+        };
     } else {
         return updateOperationField.value;
     }
