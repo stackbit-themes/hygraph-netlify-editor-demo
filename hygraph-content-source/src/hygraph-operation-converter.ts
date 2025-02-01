@@ -1,8 +1,8 @@
 import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
 import { getDocumentFieldAtFieldPath } from '@stackbit/utils';
-import { DocumentWithContext } from './hygraph-entries-converter';
-import { ModelWithContext } from './hygraph-schema-converter';
+import type { DocumentWithContext } from './hygraph-entries-converter';
+import type { ModelWithContext } from './hygraph-schema-converter';
 
 /**
  * Converts a map of {@link StackbitTypes.UpdateOperationFields} into the "data"

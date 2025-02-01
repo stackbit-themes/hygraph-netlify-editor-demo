@@ -1,5 +1,6 @@
 import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
+import { deepMap } from '@stackbit/utils';
 import { GraphQLClient } from 'graphql-request';
 import type { Query, CreateWebhookPayload } from './gql-types/gql-management-types';
 import type { ModelWithContext } from './hygraph-schema-converter';
@@ -239,7 +240,7 @@ export class HygraphApiClient {
                 const typesWithNextPage: string[] = [];
 
                 for (const [queryModelName, modelResult] of Object.entries(queryResult)) {
-                    const hygraphEntries = modelResult.edges.map((edge) => edge.node);
+                    const hygraphEntries = modelResult.edges.map((edge) => removeAliasFieldNames(edge.node));
                     result.push(...hygraphEntries);
                     if (modelResult.pageInfo.hasNextPage) {
                         typesWithNextPage.push(queryModelName);
@@ -253,7 +254,7 @@ export class HygraphApiClient {
 
             return result;
         } catch (error: any) {
-            this.logger.warn(`Error fetching entries:\n${error.toString()}\nQuery:\n${removeNewLines(query)}`);
+            this.logger.warn(`Error fetching entries:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
             return [];
         }
     }
@@ -290,9 +291,9 @@ export class HygraphApiClient {
         const query = convertASTToQuery(queryAst);
         try {
             const result = await this.contentClient.request<Record<string, HygraphEntry>>(query);
-            return result[queryModelName];
+            return removeAliasFieldNames(result[queryModelName]);
         } catch (error: any) {
-            this.logger.warn(`Error fetching entry by id:\n${error.toString()}\nQuery:\n${removeNewLines(query)}`);
+            this.logger.warn(`Error fetching entry by id:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
             return undefined;
         }
     }
@@ -311,7 +312,7 @@ export class HygraphApiClient {
         };
         const query = convertASTToQuery(queryAst);
         try {
-            this.logger.debug(`Create entry: ${removeNewLines(query)}`);
+            this.logger.debug(`Create entry: ${removeNewLinesAndCollapseSpaces(query)}`);
             const result = await this.contentClient.request<Record<string, { id: string }>>(query);
             const entry = result[createModelName];
             if (!entry) {
@@ -319,7 +320,7 @@ export class HygraphApiClient {
             }
             return entry;
         } catch (error: any) {
-            this.logger.warn(`Error creating entry:\n${error.toString()}\nQuery:\n${removeNewLines(query)}`);
+            this.logger.warn(`Error creating entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
             throw new Error(`Error creating an entry ${error.message}`);
         }
     }
@@ -347,10 +348,10 @@ export class HygraphApiClient {
         };
         const query = convertASTToQuery(queryAst);
         try {
-            this.logger.debug(`Updating entry ${entryId}: ${removeNewLines(query)}`);
+            this.logger.debug(`Updating entry ${entryId}: ${removeNewLinesAndCollapseSpaces(query)}`);
             await this.contentClient.request(query);
         } catch (error: any) {
-            this.logger.warn(`Error updating entry:\n${error.toString()}\nQuery:\n${removeNewLines(query)}`);
+            this.logger.warn(`Error updating entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
             throw new Error(`Error updating an entry ${entryId}: ${error.message}`);
         }
     }
@@ -371,7 +372,7 @@ export class HygraphApiClient {
         try {
             await this.contentClient.request(query);
         } catch (error: any) {
-            this.logger.warn(`Error deleting entry:\n${error.toString()}\nQuery:\n${removeNewLines(query)}`);
+            this.logger.warn(`Error deleting entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
             throw new Error(`Error deleting an entry ${entryId}: ${error.message}`);
         }
     }
@@ -393,7 +394,7 @@ export class HygraphApiClient {
         try {
             await this.contentClient.request(query);
         } catch (error: any) {
-            this.logger.warn(`Error publishing entry:\n${error.toString()}\nQuery:\n${removeNewLines(query)}`);
+            this.logger.warn(`Error publishing entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
         }
     }
 
@@ -414,7 +415,7 @@ export class HygraphApiClient {
         try {
             await this.contentClient.request(query);
         } catch (error: any) {
-            this.logger.warn(`Error unpublishing entry:\n${error.toString()}\nQuery:\n${removeNewLines(query)}`);
+            this.logger.warn(`Error unpublishing entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
         }
     }
 
@@ -666,17 +667,31 @@ function convertFieldsToQueryAST({
                                 if (!model) {
                                     return accum;
                                 }
+                                const modelFields = convertFieldsToQueryAST({
+                                    model,
+                                    getModelByName,
+                                    visitedModelsCount: {
+                                        ...visitedModelsCount,
+                                        [modelName]: (visitedModelsCount[modelName] ?? 0) + 1
+                                    },
+                                    logger
+                                });
+                                // alias all model fields to prevent graphql field type conflicts
+                                const aliasedModelFields = _.mapValues(modelFields, (fieldValue, fieldName) =>  {
+                                    if (fieldValue === 1) {
+                                        // For primitive fields, the value of the field in AST is the alias name
+                                        return aliasForFieldName(fieldName, modelName);
+                                    } else {
+                                        // For nested fields, the alias name is stored under the "__alias" property
+                                        return {
+                                            __alias: aliasForFieldName(fieldName, modelName),
+                                            ...fieldValue
+                                        }
+                                    }
+                                });
                                 accum[modelName] = {
                                     id: 1,
-                                    ...convertFieldsToQueryAST({
-                                        model,
-                                        getModelByName,
-                                        visitedModelsCount: {
-                                            ...visitedModelsCount,
-                                            [modelName]: (visitedModelsCount[modelName] ?? 0) + 1
-                                        },
-                                        logger
-                                    })
+                                    ...aliasedModelFields
                                 };
                                 return accum;
                             }, {})
@@ -752,12 +767,6 @@ function convertASTToQuery(queryAST: Record<string, any>, level = 0): string | s
     const indention = ' '.repeat(2 * level);
     const query: string[] = [];
     for (let [key, value] of Object.entries(queryAST)) {
-        if (key === '__arguments') {
-            continue;
-        }
-        if (key === '__alias') {
-            continue;
-        }
         if (key === '__on') {
             for (const [modelName, fields] of Object.entries(value as Record<string, any>)) {
                 // open inline fragment
@@ -768,13 +777,14 @@ function convertASTToQuery(queryAST: Record<string, any>, level = 0): string | s
                 query.push(`${indention}}`);
             }
         } else if (_.isPlainObject(value)) {
-            if ('__alias' in value) {
-                key = `${key}: ${value.__alias}`;
+            const { __alias, __arguments, ...rest } = value;
+            if (__alias) {
+                key = `${__alias}: ${key}`;
             }
             // open nested object
-            if ('__arguments' in value) {
+            if (__arguments) {
                 const args = _.reduce(
-                    value.__arguments,
+                  __arguments,
                     (accum: string[], value: any, arg: string) => {
                         accum.push(`${arg}: ${serializeQueryArgValue(value)}`);
                         return accum;
@@ -786,10 +796,14 @@ function convertASTToQuery(queryAST: Record<string, any>, level = 0): string | s
                 query.push(`${indention}${key} {`);
             }
             // insert object fields
-            query.push(...convertASTToQuery(value, level + 1));
+            query.push(...convertASTToQuery(rest, level + 1));
             // close object
             query.push(`${indention}}`);
+        } else if (typeof value === 'string') {
+            // aliased field
+            query.push(`${indention}${value}: ${key}`);
         } else {
+            // primitive field, in this case the value is "1"
             query.push(`${indention}${key}`);
         }
     }
@@ -823,6 +837,23 @@ function serializeQueryArgObject(object: Record<string, any>) {
     return `{ ${serialized} }`;
 }
 
-function removeNewLines(str?: string) {
-    return str?.replace(/\n/g, '');
+function aliasForFieldName(fieldName: string, modelName: string): string {
+    return `__${modelName}_alias__${fieldName}`
+}
+
+function removeAliasFieldNames(entry?: HygraphEntry): HygraphEntry {
+    return deepMap(entry, (value, keyPath) => {
+        if (_.isPlainObject(value) && value.__typename) {
+            const re = new RegExp(`^__${value.__typename}_alias__`);
+            return _.mapKeys(value, (value, fieldName) => fieldName.replace(re, ''))
+        }
+        return value;
+    }, {
+        iteratePrimitives: false,
+        includeKeyPath: true
+    })
+}
+
+function removeNewLinesAndCollapseSpaces(str?: string) {
+    return str?.replace(/\n/g, '').replace(/\s+/g, ' ');
 }

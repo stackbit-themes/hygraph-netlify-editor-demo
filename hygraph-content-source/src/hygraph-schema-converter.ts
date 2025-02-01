@@ -1,8 +1,8 @@
 import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
+import { omitByNil } from '@stackbit/utils';
 import type * as HygraphTypes from './gql-types/gql-management-types';
 import { SimpleFieldType, RelationalFieldType, VisibilityTypes } from './gql-types/gql-management-types';
-import { omitByNil } from '@stackbit/utils';
 
 // The generated graphql types in the "gql-management-types.ts" file include the original field names.
 // However, some fields in the "schema.ts" query were aliased due to conflicts between types.

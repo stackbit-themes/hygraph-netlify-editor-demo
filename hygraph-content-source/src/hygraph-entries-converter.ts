@@ -1,8 +1,8 @@
 import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
-import type { HygraphEntry } from './hygraph-api-client';
 import { omitByUndefined } from '@stackbit/utils';
-import { FieldInfo, ModelWithContext } from './hygraph-schema-converter';
+import type { HygraphEntry } from './hygraph-api-client';
+import type { FieldInfo, ModelWithContext } from './hygraph-schema-converter';
 
 export type DocumentWithContext = StackbitTypes.Document<DocumentContext>;
 export type DocumentContext = {

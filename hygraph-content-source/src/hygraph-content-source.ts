@@ -36,6 +36,9 @@ interface HygraphContentSourceOptions {
     managementToken: string;
 }
 
+// TODO: implement filtering of models and entries by passing options to graphql queries
+// TODO: implement caching
+
 export class HygraphContentSource
     implements
         StackbitTypes.ContentSourceInterface<unknown, SchemaContext, DocumentContext, AssetContext, ModelContext>
