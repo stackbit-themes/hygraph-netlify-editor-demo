@@ -1,5 +1,5 @@
 import type * as StackbitTypes from '@stackbit/types';
-import type * as HygraphTypes from './gql-management-types';
+import type * as HygraphTypes from './gql-types/gql-management-types';
 import { HygraphApiClient, HygraphEntry, HygraphAsset, HygraphWebhook } from './hygraph-api-client';
 import { convertModels, SchemaContext, ModelContext, ModelWithContext } from './hygraph-schema-converter';
 import { convertDocument, convertDocuments, DocumentContext, DocumentWithContext } from './hygraph-entries-converter';

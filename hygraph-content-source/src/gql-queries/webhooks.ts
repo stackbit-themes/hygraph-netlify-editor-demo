@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { gql } from 'graphql-request';
 
 export const getWebhooksQuery = gql`
-    query webhooksQuery($projectId: ID!, $environmentName: String!) {
+    query getWebhooks($projectId: ID!, $environmentName: String!) {
         viewer {
             project(id: $projectId) {
                 environment(name: $environmentName) {

@@ -1,10 +1,11 @@
 import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
 import { GraphQLClient } from 'graphql-request';
-import type { Query, CreateWebhookPayload } from './gql-management-types';
+import type { Query, CreateWebhookPayload } from './gql-types/gql-management-types';
 import type { ModelWithContext } from './hygraph-schema-converter';
 import schemaQuery from './gql-queries/schema';
 import { createWebhookMutation, getWebhooksQuery } from './gql-queries/webhooks';
+import { getAssetById, getAssets } from './gql-queries/assets';
 
 export type HygraphEntryConnectionResult = Record<
     string,
@@ -297,7 +298,6 @@ export class HygraphApiClient {
     }
 
     async createEntry({ modelName, data }: { modelName: string; data: Record<string, any> }): Promise<{ id: string }> {
-        // TODO: move data to query parameter
         const createModelName = `create${modelName}`;
         const queryAst: any = {
             mutation: {
@@ -333,7 +333,6 @@ export class HygraphApiClient {
         modelName: string;
         data: Record<string, any>;
     }): Promise<void> {
-        // TODO: move data to query parameter
         const updateModelName = `update${modelName}`;
         const queryAst: any = {
             mutation: {
@@ -420,67 +419,37 @@ export class HygraphApiClient {
     }
 
     async getAssets(options: { maxPaginationSize?: number } = {}): Promise<HygraphAsset[]> {
-        const queryAst: any = {
-            query: {
-                assetsConnection: {
-                    __arguments: {
-                        stage: { enum: 'DRAFT' },
-                        first: options.maxPaginationSize ?? 100,
-                        skip: 0
-                    },
-                    edges: {
-                        node: {
-                            ...defaultAssetQueryFields()
-                        }
-                    },
-                    pageInfo: {
-                        hasNextPage: 1,
-                        pageSize: 1
-                    }
-                }
-            }
-        };
-
         const result: HygraphAsset[] = [];
-        let query;
+        let skip = 0;
         try {
             let hasNextPage;
             do {
-                query = convertASTToQuery(queryAst);
-
-                const queryResult = await this.contentClient.request<HygraphAssetConnectionResult>(query);
+                const queryResult = await this.contentClient.request<HygraphAssetConnectionResult>(getAssets, {
+                    first: options.maxPaginationSize ?? 100,
+                    skip: skip
+                });
                 const hygraphAssets = queryResult.assetsConnection.edges.map((edge) => edge.node);
                 result.push(...hygraphAssets);
 
-                queryAst.query.assetsConnection.__arguments.skip += queryResult.assetsConnection.pageInfo.pageSize;
+                skip += queryResult.assetsConnection.pageInfo.pageSize;
                 hasNextPage = queryResult.assetsConnection.pageInfo.hasNextPage;
             } while (hasNextPage);
 
             return result;
         } catch (error: any) {
-            this.logger.warn(`Error fetching assets:\n${error.toString()}\nQuery:\n${removeNewLines(query)}`);
+            this.logger.warn(`Error fetching assets:\n${error.toString()}`);
             return [];
         }
     }
 
     async getAssetById(assetId: string): Promise<HygraphAsset | undefined> {
-        const queryAst: any = {
-            query: {
-                asset: {
-                    __arguments: {
-                        stage: { enum: 'DRAFT' },
-                        where: { id: assetId }
-                    },
-                    ...defaultAssetQueryFields()
-                }
-            }
-        };
-        const query = convertASTToQuery(queryAst);
         try {
-            const result = await this.contentClient.request<{ asset: HygraphAsset }>(query);
+            const result = await this.contentClient.request<{ asset: HygraphAsset }>(getAssetById, {
+                id: assetId
+            });
             return result.asset;
         } catch (error: any) {
-            this.logger.warn(`Error fetching asset:\n${error.toString()}\nQuery:\n${removeNewLines(query)}`);
+            this.logger.warn(`Error fetching asset:\n${error.toString()}`);
             return undefined;
         }
     }
@@ -543,7 +512,6 @@ export class HygraphApiClient {
                     return undefined;
                 }
                 this.logger.debug(`Uploaded asset for asset id: ${createAssetResponse.id}`);
-                // TODO: check for status
                 return createAssetResponse.id;
             }
         } catch (err: any) {
@@ -640,34 +608,6 @@ function defaultDocumentQueryFields(options: {
             updatedAt: 1
         },
         ...convertFieldsToQueryAST(options)
-    };
-}
-
-function defaultAssetQueryFields() {
-    return {
-        __typename: 1,
-        id: 1,
-        createdAt: 1,
-        createdBy: { id: 1 },
-        updatedAt: 1,
-        updatedBy: { id: 1 },
-        stage: 1,
-        documentInStages: {
-            id: 1,
-            stage: 1,
-            publishedAt: 1,
-            updatedAt: 1
-        },
-        url: 1,
-        fileName: 1,
-        handle: 1,
-        mimeType: 1,
-        size: 1,
-        width: 1,
-        height: 1,
-        upload: {
-            status: 1
-        }
     };
 }
 

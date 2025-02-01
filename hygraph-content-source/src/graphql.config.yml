@@ -5,6 +5,9 @@
 projects:
   management:
     schema: gql-schemas/management.graphql
+    include:
+      - "./gql-queries/schema.ts"
+      - "./gql-queries/webhooks.ts"
     extensions:
       endpoints:
         hygraph_management:
@@ -13,6 +16,8 @@ projects:
             Authorization: Bearer ${HYGRAPH_MANAGEMENT_TOKEN}
   content:
     schema: gql-schemas/content.graphql
+    include:
+      - "./gql-queries/assets.ts"
     extensions:
       endpoints:
         hygraph_content:

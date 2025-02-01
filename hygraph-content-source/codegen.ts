@@ -10,7 +10,7 @@ dotenvConfig({ path: path.join(__dirname, '../.env') });
 const config: CodegenConfig = {
     overwrite: true,
     generates: {
-        './src/gql-management-types.ts': {
+        './src/gql-types/gql-management-types.ts': {
             schema: {
                 [process.env.HYGRAPH_MANAGEMENT_API!]: {
                     headers: {
@@ -20,10 +20,10 @@ const config: CodegenConfig = {
             },
             plugins: ['typescript']
         },
-        // './src/gql-content-types.ts': {
-        //     schema: process.env.HYGRAPH_ENDPOINT!,
-        //     plugins: ['typescript']
-        // }
+        './src/gql-types/gql-content-types.ts': {
+            schema: process.env.HYGRAPH_ENDPOINT!,
+            plugins: ['typescript']
+        }
     }
 };
 
