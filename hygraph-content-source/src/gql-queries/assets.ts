@@ -56,6 +56,49 @@ export const getAssetById = gql`
             ...AssetFragment
         }
     }
-    
+
     ${assetFragment}
+`;
+
+export const createAssetWithURL = gql`
+    mutation createAssetWithURL($fileName: String!, $uploadUrl: String!) {
+        createAsset(data: { fileName: $fileName, uploadUrl: $uploadUrl }) {
+            id
+            url
+            upload {
+                status
+                error {
+                    code
+                    message
+                }
+            }
+        }
+    }
+`;
+
+export const createAssetWithPostData = gql`
+    mutation createAssetWithPostData($fileName: String!) {
+        createAsset(data: { fileName: $fileName }) {
+            id
+            url
+            upload {
+                status
+                expiresAt
+                error {
+                    code
+                    message
+                }
+                requestPostData {
+                    url
+                    date
+                    key
+                    signature
+                    algorithm
+                    policy
+                    credential
+                    securityToken
+                }
+            }
+        }
+    }
 `;

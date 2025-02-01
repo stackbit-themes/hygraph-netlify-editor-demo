@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { gql } from 'graphql-request';
 
-export const getWebhooksQuery = gql`
+export const getWebhooks = gql`
     query getWebhooks($projectId: ID!, $environmentName: String!) {
         viewer {
             project(id: $projectId) {
@@ -19,7 +19,7 @@ export const getWebhooksQuery = gql`
     }
 `;
 
-export const createWebhookMutation = gql`
+export const createWebhook = gql`
     mutation createWebhook($environmentId: ID!, $url: String!) {
         createWebhook(
             data: {

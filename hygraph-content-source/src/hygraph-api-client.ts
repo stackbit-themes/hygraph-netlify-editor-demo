@@ -4,9 +4,9 @@ import { deepMap } from '@stackbit/utils';
 import { GraphQLClient } from 'graphql-request';
 import type { Query, CreateWebhookPayload } from './gql-types/gql-management-types';
 import type { ModelWithContext } from './hygraph-schema-converter';
-import schemaQuery from './gql-queries/schema';
-import { createWebhookMutation, getWebhooksQuery } from './gql-queries/webhooks';
-import { getAssetById, getAssets } from './gql-queries/assets';
+import { getSchema } from './gql-queries/schema';
+import { createWebhook, getWebhooks } from './gql-queries/webhooks';
+import { getAssets, getAssetById, createAssetWithURL, createAssetWithPostData } from './gql-queries/assets';
 
 export type HygraphEntryConnectionResult = Record<
     string,
@@ -158,7 +158,7 @@ export class HygraphApiClient {
     }
 
     async getSchema() {
-        const result = await this.managementClient.request<Query>(schemaQuery, {
+        const result = await this.managementClient.request<Query>(getSchema, {
             projectId: this.projectId,
             environmentName: this.environment
         });
@@ -174,7 +174,7 @@ export class HygraphApiClient {
     }
 
     async getWebhooks() {
-        const result = await this.managementClient.request<Query>(getWebhooksQuery, {
+        const result = await this.managementClient.request<Query>(getWebhooks, {
             projectId: this.projectId,
             environmentName: this.environment
         });
@@ -185,13 +185,10 @@ export class HygraphApiClient {
     }
 
     async createWebhook({ url, environmentId }: { url: string; environmentId: string }) {
-        const result = await this.managementClient.request<{ createWebhook: CreateWebhookPayload }>(
-            createWebhookMutation,
-            {
-                environmentId: environmentId,
-                url: url
-            }
-        );
+        const result = await this.managementClient.request<{ createWebhook: CreateWebhookPayload }>(createWebhook, {
+            environmentId: environmentId,
+            url: url
+        });
         return result.createWebhook.createdWebhook;
     }
 
@@ -254,7 +251,9 @@ export class HygraphApiClient {
 
             return result;
         } catch (error: any) {
-            this.logger.warn(`Error fetching entries:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
+            this.logger.warn(
+                `Error fetching entries:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
+            );
             return [];
         }
     }
@@ -293,7 +292,9 @@ export class HygraphApiClient {
             const result = await this.contentClient.request<Record<string, HygraphEntry>>(query);
             return removeAliasFieldNames(result[queryModelName]);
         } catch (error: any) {
-            this.logger.warn(`Error fetching entry by id:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
+            this.logger.warn(
+                `Error fetching entry by id:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
+            );
             return undefined;
         }
     }
@@ -320,7 +321,9 @@ export class HygraphApiClient {
             }
             return entry;
         } catch (error: any) {
-            this.logger.warn(`Error creating entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
+            this.logger.warn(
+                `Error creating entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
+            );
             throw new Error(`Error creating an entry ${error.message}`);
         }
     }
@@ -351,7 +354,9 @@ export class HygraphApiClient {
             this.logger.debug(`Updating entry ${entryId}: ${removeNewLinesAndCollapseSpaces(query)}`);
             await this.contentClient.request(query);
         } catch (error: any) {
-            this.logger.warn(`Error updating entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
+            this.logger.warn(
+                `Error updating entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
+            );
             throw new Error(`Error updating an entry ${entryId}: ${error.message}`);
         }
     }
@@ -372,7 +377,9 @@ export class HygraphApiClient {
         try {
             await this.contentClient.request(query);
         } catch (error: any) {
-            this.logger.warn(`Error deleting entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
+            this.logger.warn(
+                `Error deleting entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
+            );
             throw new Error(`Error deleting an entry ${entryId}: ${error.message}`);
         }
     }
@@ -394,7 +401,9 @@ export class HygraphApiClient {
         try {
             await this.contentClient.request(query);
         } catch (error: any) {
-            this.logger.warn(`Error publishing entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
+            this.logger.warn(
+                `Error publishing entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
+            );
         }
     }
 
@@ -415,7 +424,9 @@ export class HygraphApiClient {
         try {
             await this.contentClient.request(query);
         } catch (error: any) {
-            this.logger.warn(`Error unpublishing entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`);
+            this.logger.warn(
+                `Error unpublishing entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
+            );
         }
     }
 
@@ -525,22 +536,14 @@ export class HygraphApiClient {
         fileName: string;
         url: string;
     }): Promise<HygraphCreateAssetWithURLResponse> {
-        const gql = `mutation createAsset {
-            createAsset(data: { fileName: "${options.fileName}", uploadUrl: "${options.url}" }) {
-              id
-              url
-              upload {
-                status
-                error {
-                  code
-                  message
-                }
-              }
-            }
-          }`;
-
         try {
-            const response = await this.contentClient.request<{ createAsset: HygraphCreateAssetWithURLResponse }>(gql);
+            const response = await this.contentClient.request<{ createAsset: HygraphCreateAssetWithURLResponse }>(
+                createAssetWithURL,
+                {
+                    fileName: options.fileName,
+                    uploadUrl: options.url
+                }
+            );
             return response.createAsset;
         } catch (error: any) {
             this.logger.warn(`Error creating asset:\n${error.toString()}`);
@@ -551,34 +554,10 @@ export class HygraphApiClient {
     private async createAssetWithPostData(options: {
         fileName: string;
     }): Promise<HygraphCreateAssetWithPostDataResponse> {
-        const gql = `mutation createAsset {
-            createAsset(data: { fileName: "${options.fileName}" }) {
-              id
-              url
-              upload {
-                status
-                expiresAt
-                error {
-                  code
-                  message
-                }
-                requestPostData {
-                  url
-                  date
-                  key
-                  signature
-                  algorithm
-                  policy
-                  credential
-                  securityToken
-                }
-              }
-            }
-          }`;
-
         try {
             const response = await this.contentClient.request<{ createAsset: HygraphCreateAssetWithPostDataResponse }>(
-                gql
+                createAssetWithPostData,
+                { fileName: options.fileName }
             );
             return response.createAsset;
         } catch (error: any) {
@@ -677,7 +656,7 @@ function convertFieldsToQueryAST({
                                     logger
                                 });
                                 // alias all model fields to prevent graphql field type conflicts
-                                const aliasedModelFields = _.mapValues(modelFields, (fieldValue, fieldName) =>  {
+                                const aliasedModelFields = _.mapValues(modelFields, (fieldValue, fieldName) => {
                                     if (fieldValue === 1) {
                                         // For primitive fields, the value of the field in AST is the alias name
                                         return aliasForFieldName(fieldName, modelName);
@@ -686,7 +665,7 @@ function convertFieldsToQueryAST({
                                         return {
                                             __alias: aliasForFieldName(fieldName, modelName),
                                             ...fieldValue
-                                        }
+                                        };
                                     }
                                 });
                                 accum[modelName] = {
@@ -784,7 +763,7 @@ function convertASTToQuery(queryAST: Record<string, any>, level = 0): string | s
             // open nested object
             if (__arguments) {
                 const args = _.reduce(
-                  __arguments,
+                    __arguments,
                     (accum: string[], value: any, arg: string) => {
                         accum.push(`${arg}: ${serializeQueryArgValue(value)}`);
                         return accum;
@@ -838,20 +817,24 @@ function serializeQueryArgObject(object: Record<string, any>) {
 }
 
 function aliasForFieldName(fieldName: string, modelName: string): string {
-    return `__${modelName}_alias__${fieldName}`
+    return `__${modelName}_alias__${fieldName}`;
 }
 
 function removeAliasFieldNames(entry?: HygraphEntry): HygraphEntry {
-    return deepMap(entry, (value, keyPath) => {
-        if (_.isPlainObject(value) && value.__typename) {
-            const re = new RegExp(`^__${value.__typename}_alias__`);
-            return _.mapKeys(value, (value, fieldName) => fieldName.replace(re, ''))
+    return deepMap(
+        entry,
+        (value, keyPath) => {
+            if (_.isPlainObject(value) && value.__typename) {
+                const re = new RegExp(`^__${value.__typename}_alias__`);
+                return _.mapKeys(value, (value, fieldName) => fieldName.replace(re, ''));
+            }
+            return value;
+        },
+        {
+            iteratePrimitives: false,
+            includeKeyPath: true
         }
-        return value;
-    }, {
-        iteratePrimitives: false,
-        includeKeyPath: true
-    })
+    );
 }
 
 function removeNewLinesAndCollapseSpaces(str?: string) {

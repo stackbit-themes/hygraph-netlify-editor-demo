@@ -1,7 +1,7 @@
 import { gql } from 'graphql-request';
 
-export default gql`
-    query schemaQuery($projectId: ID!, $environmentName: String!) {
+export const getSchema = gql`
+    query getSchema($projectId: ID!, $environmentName: String!) {
         viewer {
             __typename
             id
