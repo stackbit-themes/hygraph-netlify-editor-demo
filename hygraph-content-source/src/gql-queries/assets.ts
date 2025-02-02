@@ -7,10 +7,14 @@ const assetFragment = gql`
         createdAt
         createdBy {
             id
+            name
+            kind
         }
         updatedAt
         updatedBy {
             id
+            name
+            kind
         }
         stage
         documentInStages {
@@ -58,6 +62,30 @@ export const getAssetById = gql`
     }
 
     ${assetFragment}
+`;
+
+export const publishAssets = gql`
+    mutation publishAssets($assetIds: [ID!]!) {
+        publishManyAssetsConnection(to: PUBLISHED, where: { id_in: $assetIds }) {
+            edges {
+                node {
+                    id
+                }
+            }
+        }
+    }
+`;
+
+export const unpublishAssets = gql`
+    mutation unpublishAssets($assetIds: [ID!]!) {
+        unpublishManyAssetsConnection(from: PUBLISHED, where: { id_in: $assetIds }) {
+            edges {
+                node {
+                    id
+                }
+            }
+        }
+    }
 `;
 
 export const createAssetWithURL = gql`

@@ -51,11 +51,11 @@ export function convertAsset({
                 type: 'assetFile' as const,
                 url: hygraphAsset.url,
                 fileName: hygraphAsset.fileName,
-                contentType: hygraphAsset.mimeType,
-                size: hygraphAsset.size,
+                contentType: hygraphAsset.mimeType ?? undefined,
+                size: hygraphAsset.size ?? undefined,
                 dimensions: {
-                    width: hygraphAsset.width,
-                    height: hygraphAsset.height
+                    width: hygraphAsset.width ?? undefined,
+                    height: hygraphAsset.height ?? undefined
                 }
             }
         }

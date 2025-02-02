@@ -1,6 +1,16 @@
 import crypto from 'crypto';
 import { gql } from 'graphql-request';
 
+const webhookFragment = gql`
+    fragment WebhookFragment on Webhook {
+        __typename
+        id
+        name
+        url
+        isActive
+    }
+`;
+
 export const getWebhooks = gql`
     query getWebhooks($projectId: ID!, $environmentName: String!) {
         viewer {
@@ -8,15 +18,14 @@ export const getWebhooks = gql`
                 environment(name: $environmentName) {
                     id
                     webhooks {
-                        __typename
-                        id
-                        name
-                        url
+                        ...WebhookFragment
                     }
                 }
             }
         }
     }
+
+    ${webhookFragment}
 `;
 
 export const createWebhook = gql`
@@ -29,7 +38,7 @@ export const createWebhook = gql`
                 name: "Local Visual Editor (${crypto.randomUUID().substring(0, 8)})",
                 description: "A webhook for local Visual Editor.",
                 isActive: true,
-                includePayload: true,
+                includePayload: false,
                 models: [],
                 stages: [],
                 triggerType: CONTENT_MODEL,
@@ -38,11 +47,36 @@ export const createWebhook = gql`
             }
         ) {
             createdWebhook {
-                __typename
-                id
-                name
-                url
+                ...WebhookFragment
             }
         }
     }
+    
+    ${webhookFragment}
+`;
+
+export const updateWebhook = gql`
+    mutation updateWebhook($webhookId: ID!) {
+        updateWebhook(
+            data: {
+                webhookId: $webhookId,
+                method: POST,
+                name: "Local Visual Editor (${crypto.randomUUID().substring(0, 8)})",
+                description: "A webhook for local Visual Editor.",
+                isActive: true,
+                includePayload: false,
+                models: [],
+                stages: [],
+                triggerType: CONTENT_MODEL,
+                triggerActions: [],
+                triggerSources: []
+            }
+        ) {
+            updatedWebhook {
+                ...WebhookFragment
+            }
+        }
+    }
+
+    ${webhookFragment}
 `;

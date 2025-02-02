@@ -2,20 +2,34 @@ import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
 import { deepMap } from '@stackbit/utils';
 import { GraphQLClient } from 'graphql-request';
-import type { Query, CreateWebhookPayload } from './gql-types/gql-management-types';
+import type { Query, Webhook } from './gql-types/gql-management-types';
+import {
+    Asset,
+    AssetUpload,
+    PageInfo,
+    Stage,
+    Maybe,
+    ScheduledOperation,
+    Version,
+    UserKind
+} from './gql-types/gql-content-types';
 import type { ModelWithContext } from './hygraph-schema-converter';
 import { getSchema } from './gql-queries/schema';
-import { createWebhook, getWebhooks } from './gql-queries/webhooks';
-import { getAssets, getAssetById, createAssetWithURL, createAssetWithPostData } from './gql-queries/assets';
+import { createWebhook, getWebhooks, updateWebhook } from './gql-queries/webhooks';
+import {
+    getAssets,
+    getAssetById,
+    createAssetWithURL,
+    createAssetWithPostData,
+    publishAssets,
+    unpublishAssets
+} from './gql-queries/assets';
 
 export type HygraphEntryConnectionResult = Record<
     string,
     {
         edges: { node: HygraphEntry }[];
-        pageInfo: {
-            hasNextPage: boolean;
-            pageSize: number;
-        };
+        pageInfo: Pick<PageInfo, 'hasNextPage' | 'pageSize'>;
     }
 >;
 
@@ -23,68 +37,74 @@ export type HygraphEntry = {
     __typename: string;
     id: string;
     createdAt: string;
-    createdBy: HygraphUser;
+    createdBy?: HygraphUser;
     updatedAt: string;
-    updatedBy: HygraphUser;
+    updatedBy?: HygraphUser;
     publishedAt: string | null;
     publishedBy: HygraphUser | null;
-    stage: 'DRAFT' | 'PUBLISHED';
+    stage: Stage;
     documentInStages: {
-        stage: 'PUBLISHED';
+        stage: Stage;
         updatedAt: string;
     }[];
-    scheduledIn?: any[];
-    history?: {
-        id: string;
-        createdAt: string;
-        revision: number;
-        stage: string;
-    }[];
+    scheduledIn?: ScheduledOperation[];
+    history?: Version[];
     [key: string]: any;
 };
 
-export type HygraphAssetConnectionResult = {
-    assetsConnection: {
-        edges: { node: HygraphAsset }[];
-        pageInfo: {
-            hasNextPage: boolean;
-            pageSize: number;
+export type HygraphAsset = Pick<
+    Asset,
+    | 'id'
+    | 'createdAt'
+    | 'createdBy'
+    | 'updatedAt'
+    | 'updatedBy'
+    | 'stage'
+    | 'url'
+    | 'fileName'
+    | 'handle'
+    | 'mimeType'
+    | 'size'
+    | 'width'
+    | 'height'
+> & {
+    __typename: 'Asset';
+    documentInStages: Pick<Asset, 'stage' | 'updatedAt'>[];
+    upload?: Maybe<Pick<AssetUpload, 'status'>>;
+};
+
+export type GetWebhooksResult = {
+    viewer: {
+        project?: {
+            environment: {
+                id: string;
+                webhooks: Pick<Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>[];
+            };
         };
     };
 };
 
-export type HygraphAsset = {
-    __typename: string;
-    id: string;
-    createdAt: string;
-    createdBy: HygraphUser;
-    updatedAt: string;
-    updatedBy: HygraphUser;
-    stage: 'DRAFT' | 'PUBLISHED';
-    documentInStages: {
-        stage: 'PUBLISHED';
-        updatedAt: string;
-    }[];
-    scheduledIn?: any[];
-    url: string;
-    fileName: string;
-    handle: string;
-    mimeType: string;
-    size: number;
-    width: number;
-    height: number;
-    upload: {
-        status: 'ASSET_CREATE_PENDING' | 'ASSET_UPLOAD_COMPLETE' | 'ASSET_UPDATE_PENDING' | 'ASSET_ERROR_UPLOAD';
+export type CreateWebhookResponse = {
+    createWebhook: {
+        createdWebhook: Pick<Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>;
     };
 };
 
-export type HygraphWebhook = {
+export type UpdateWebhookResponse = {
+    updateWebhook: {
+        updatedWebhook: Pick<Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>;
+    };
+};
+
+export type HygraphWebhookPayload = {
     operation: 'create' | 'update' | 'publish' | 'unpublish' | 'delete';
     data: HygraphEntry | HygraphAsset;
 };
 
 export type HygraphUser = {
-    id?: string;
+    id: string;
+    name: string;
+    kind: UserKind;
 };
 
 export interface HygraphApiClientOptions {
@@ -144,12 +164,32 @@ export class HygraphApiClient {
     private projectId: string;
     private environment: string;
     private logger: StackbitTypes.Logger;
+    private debugGraphQLQueries: boolean;
 
     constructor(options: HygraphApiClientOptions) {
         this.projectId = options.projectId;
         this.environment = options.environment;
         this.logger = options.logger;
-        this.contentClient = new GraphQLClient(options.contentApi);
+        this.debugGraphQLQueries = false;
+
+        let contentApi = options.contentApi;
+        // Replace "High performance endpoint" with "Regular read & write endpoint".
+        // This is to get read-after-write consistency. https://hygraph.com/docs/api-reference/basics/caching
+        const match = contentApi.match(
+            /https:\/\/(?<region>[\w-]+)\.cdn.hygraph.com\/content\/(?<hash>\w+)\/(?<environment>[\w-]+)/
+        );
+        if (match) {
+            contentApi = `https://api-${match.groups?.region}.hygraph.com/v2/${match.groups?.hash}/${match.groups?.environment}`;
+            this.logger.info(
+                `Replaced High performance endpoint '${options.contentApi}' with Regular read & write endpoint '${contentApi}' to ensure read-after-write consistency (https://hygraph.com/docs/api-reference/basics/caching)`
+            );
+        }
+
+        this.contentClient = new GraphQLClient(contentApi, {
+            headers: {
+                Authorization: `Bearer ${options.managementToken}`
+            }
+        });
         this.managementClient = new GraphQLClient(options.managementApi, {
             headers: {
                 Authorization: `Bearer ${options.managementToken}`
@@ -174,7 +214,7 @@ export class HygraphApiClient {
     }
 
     async getWebhooks() {
-        const result = await this.managementClient.request<Query>(getWebhooks, {
+        const result = await this.managementClient.request<GetWebhooksResult>(getWebhooks, {
             projectId: this.projectId,
             environmentName: this.environment
         });
@@ -185,31 +225,42 @@ export class HygraphApiClient {
     }
 
     async createWebhook({ url, environmentId }: { url: string; environmentId: string }) {
-        const result = await this.managementClient.request<{ createWebhook: CreateWebhookPayload }>(createWebhook, {
+        const result = await this.managementClient.request<CreateWebhookResponse>(createWebhook, {
             environmentId: environmentId,
             url: url
         });
         return result.createWebhook.createdWebhook;
     }
 
+    async updateWebhook({ webhookId }: { webhookId: string }) {
+        const result = await this.managementClient.request<UpdateWebhookResponse>(updateWebhook, {
+            webhookId: webhookId
+        });
+        return result.updateWebhook.updatedWebhook;
+    }
+
     async getEntries({
         models,
-        maxPaginationSize
+        maxPaginationSize,
+        entriesFilter
     }: {
         models: ModelWithContext[];
         maxPaginationSize?: number;
+        entriesFilter?: Record<string, string>;
     }): Promise<HygraphEntry[]> {
         const queryAst: any = { query: {} };
         const dataModels = models.filter((model) => model.type === 'data');
         const modelsByName = _.keyBy(models, 'name');
+        maxPaginationSize = maxPaginationSize ?? 100;
 
         for (const model of dataModels) {
             const queryModelName = toLowerCaseFirst(model.context!.pluralId) + 'Connection';
             queryAst.query[queryModelName] = {
                 __arguments: {
-                    stage: { enum: 'DRAFT' },
-                    first: maxPaginationSize ?? 100,
-                    skip: 0
+                    stage: { __enum: 'DRAFT' },
+                    first: maxPaginationSize,
+                    skip: 0,
+                    ...(entriesFilter?.[model.name] ? { where: { __raw: entriesFilter[model.name] } } : null)
                 },
                 edges: {
                     node: {
@@ -233,6 +284,10 @@ export class HygraphApiClient {
             let hasNextPage: boolean;
             do {
                 query = convertASTToQuery(queryAst);
+                if (this.debugGraphQLQueries) {
+                    this.logger.debug(query);
+                }
+                query = removeNewLinesAndCollapseSpaces(query);
                 const queryResult = await this.contentClient.request<HygraphEntryConnectionResult>(query);
                 const typesWithNextPage: string[] = [];
 
@@ -241,7 +296,8 @@ export class HygraphApiClient {
                     result.push(...hygraphEntries);
                     if (modelResult.pageInfo.hasNextPage) {
                         typesWithNextPage.push(queryModelName);
-                        queryAst.query[queryModelName].__arguments.skip += modelResult.pageInfo.pageSize;
+                        queryAst.query[queryModelName].__arguments.skip +=
+                            modelResult.pageInfo.pageSize ?? maxPaginationSize;
                     }
                 }
 
@@ -251,9 +307,7 @@ export class HygraphApiClient {
 
             return result;
         } catch (error: any) {
-            this.logger.warn(
-                `Error fetching entries:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
-            );
+            this.logger.warn(`Error fetching entries:\n${error.toString()}\nQuery:\n${query}`);
             return [];
         }
     }
@@ -276,7 +330,7 @@ export class HygraphApiClient {
             query: {
                 [queryModelName]: {
                     __arguments: {
-                        stage: { enum: 'DRAFT' },
+                        stage: { __enum: 'DRAFT' },
                         where: { id: entryId }
                     },
                     ...defaultDocumentQueryFields({
@@ -287,14 +341,16 @@ export class HygraphApiClient {
                 }
             }
         };
-        const query = convertASTToQuery(queryAst);
+        let query = convertASTToQuery(queryAst);
+        if (this.debugGraphQLQueries) {
+            this.logger.debug(query);
+        }
+        query = removeNewLinesAndCollapseSpaces(query);
         try {
             const result = await this.contentClient.request<Record<string, HygraphEntry>>(query);
             return removeAliasFieldNames(result[queryModelName]);
         } catch (error: any) {
-            this.logger.warn(
-                `Error fetching entry by id:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
-            );
+            this.logger.warn(`Error fetching entry by id:\n${error.toString()}\nQuery:\n${query}`);
             return undefined;
         }
     }
@@ -311,19 +367,19 @@ export class HygraphApiClient {
                 }
             }
         };
-        const query = convertASTToQuery(queryAst);
+        let query = convertASTToQuery(queryAst);
+        query = removeNewLinesAndCollapseSpaces(query);
         try {
-            this.logger.debug(`Create entry: ${removeNewLinesAndCollapseSpaces(query)}`);
+            this.logger.debug(`Create entry: ${query}`);
             const result = await this.contentClient.request<Record<string, { id: string }>>(query);
             const entry = result[createModelName];
             if (!entry) {
                 throw new Error(`Error creating an entry`);
             }
+            this.logger.debug(`Successfully created entry ${entry.id}`);
             return entry;
         } catch (error: any) {
-            this.logger.warn(
-                `Error creating entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
-            );
+            this.logger.warn(`Error creating entry:\n${error.toString()}\nQuery:\n${query}`);
             throw new Error(`Error creating an entry ${error.message}`);
         }
     }
@@ -349,14 +405,14 @@ export class HygraphApiClient {
                 }
             }
         };
-        const query = convertASTToQuery(queryAst);
+        let query = convertASTToQuery(queryAst);
+        query = removeNewLinesAndCollapseSpaces(query);
         try {
-            this.logger.debug(`Updating entry ${entryId}: ${removeNewLinesAndCollapseSpaces(query)}`);
+            this.logger.debug(`Update entry ${entryId}: ${query}`);
             await this.contentClient.request(query);
+            this.logger.debug(`Successfully updated entry ${entryId}`);
         } catch (error: any) {
-            this.logger.warn(
-                `Error updating entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
-            );
+            this.logger.warn(`Error updating entry:\n${error.toString()}\nQuery:\n${query}`);
             throw new Error(`Error updating an entry ${entryId}: ${error.message}`);
         }
     }
@@ -373,13 +429,14 @@ export class HygraphApiClient {
                 }
             }
         };
-        const query = convertASTToQuery(queryAst);
+        let query = convertASTToQuery(queryAst);
+        query = removeNewLinesAndCollapseSpaces(query);
         try {
+            this.logger.debug(`Delete entry ${entryId}: ${query}`);
             await this.contentClient.request(query);
+            this.logger.debug(`Successfully deleted entry ${entryId}`);
         } catch (error: any) {
-            this.logger.warn(
-                `Error deleting entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
-            );
+            this.logger.warn(`Error deleting entry:\n${error.toString()}\nQuery:\n${query}`);
             throw new Error(`Error deleting an entry ${entryId}: ${error.message}`);
         }
     }
@@ -391,19 +448,20 @@ export class HygraphApiClient {
                 [publishModelName]: {
                     __arguments: {
                         where: { id: entryId },
-                        to: { enum: 'PUBLISHED' }
+                        to: { __enum: 'PUBLISHED' }
                     },
                     id: 1
                 }
             }
         };
-        const query = convertASTToQuery(queryAst);
+        let query = convertASTToQuery(queryAst);
+        query = removeNewLinesAndCollapseSpaces(query);
         try {
+            this.logger.debug(`Publish entry ${entryId}: ${query}`);
             await this.contentClient.request(query);
+            this.logger.debug(`Successfully published entry ${entryId}`);
         } catch (error: any) {
-            this.logger.warn(
-                `Error publishing entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
-            );
+            this.logger.warn(`Error publishing entry:\n${error.toString()}\nQuery:\n${query}`);
         }
     }
 
@@ -414,36 +472,130 @@ export class HygraphApiClient {
                 [publishModelName]: {
                     __arguments: {
                         where: { id: entryId },
-                        from: { enum: 'PUBLISHED' }
+                        from: { __enum: 'PUBLISHED' }
                     },
                     id: 1
                 }
             }
         };
-        const query = convertASTToQuery(queryAst);
+        let query = convertASTToQuery(queryAst);
+        query = removeNewLinesAndCollapseSpaces(query);
         try {
+            this.logger.debug(`Unpublish entry ${entryId}: ${query}`);
             await this.contentClient.request(query);
+            this.logger.debug(`Successfully unpublished entry ${entryId}`);
         } catch (error: any) {
-            this.logger.warn(
-                `Error unpublishing entry:\n${error.toString()}\nQuery:\n${removeNewLinesAndCollapseSpaces(query)}`
+            this.logger.warn(`Error unpublishing entry:\n${error.toString()}\nQuery:\n${query}`);
+        }
+    }
+
+    async publishEntries(entryMap: Record<string, string[]>): Promise<void> {
+        const queryAst: any = { mutation: {} };
+        for (const [pluralModelName, entryIds] of Object.entries(entryMap)) {
+            const publishManyConnection = `publishMany${toLowerCaseFirst(pluralModelName)}Connection`;
+            queryAst.mutation[publishManyConnection] = {
+                __arguments: {
+                    where: { id_in: entryIds },
+                    to: { __enum: 'PUBLISHED' }
+                },
+                edges: {
+                    node: {
+                        __typename: 1,
+                        id: 1
+                    }
+                }
+            };
+        }
+
+        let query = convertASTToQuery(queryAst);
+        if (this.debugGraphQLQueries) {
+            this.logger.debug(query);
+        }
+        query = removeNewLinesAndCollapseSpaces(query);
+        try {
+            this.logger.debug(
+                `Publish entries ${Object.entries(entryMap)
+                    .map(([pluralModelName, entryIds]) => `${pluralModelName}: [${entryIds.join(', ')}]`)
+                    .join(', ')}: ${query}`
             );
+            type ResponseType = Record<string, { edges: { node: { __typename: string; id: string } }[] }>;
+            const result = await this.contentClient.request<ResponseType>(query);
+            const publishedEntryIds = Object.values(result)
+                .map(
+                    (item) =>
+                        `${item.edges[0]?.node.__typename}: [${item.edges.map((edge) => edge.node.id).join(', ')}]`
+                )
+                .join(', ');
+            this.logger.debug(`Successfully published entries ${publishedEntryIds}`);
+        } catch (error: any) {
+            this.logger.warn(`Error publishing entries:\n${error.toString()}\nQuery:\n${query}`);
+        }
+    }
+
+    async unpublishEntries(entryMap: Record<string, string[]>): Promise<void> {
+        const queryAst: any = { mutation: {} };
+        for (const [pluralModelName, entryIds] of Object.entries(entryMap)) {
+            const unpublishManyConnection = `unpublishMany${toLowerCaseFirst(pluralModelName)}Connection`;
+            queryAst.mutation[unpublishManyConnection] = {
+                __arguments: {
+                    where: { id_in: entryIds },
+                    from: { __enum: 'PUBLISHED' }
+                },
+                edges: {
+                    node: {
+                        __typename: 1,
+                        id: 1
+                    }
+                }
+            };
+        }
+
+        let query = convertASTToQuery(queryAst);
+        if (this.debugGraphQLQueries) {
+            this.logger.debug(query);
+        }
+        query = removeNewLinesAndCollapseSpaces(query);
+        try {
+            this.logger.debug(
+                `Unpublish entries ${Object.entries(entryMap)
+                    .map(([pluralModelName, entryIds]) => `${pluralModelName}: [${entryIds.join(', ')}]`)
+                    .join(', ')}: ${query}`
+            );
+            type ResponseType = Record<string, { edges: { node: { __typename: string; id: string } }[] }>;
+            const result = await this.contentClient.request<ResponseType>(query);
+            const unpublishedEntryIds = Object.values(result)
+                .map(
+                    (item) =>
+                        `${item.edges[0]?.node.__typename}: [${item.edges.map((edge) => edge.node.id).join(', ')}]`
+                )
+                .join(', ');
+            this.logger.debug(`Successfully unpublished entries ${unpublishedEntryIds}`);
+        } catch (error: any) {
+            this.logger.warn(`Error unpublishing entries:\n${error.toString()}\nQuery:\n${query}`);
         }
     }
 
     async getAssets(options: { maxPaginationSize?: number } = {}): Promise<HygraphAsset[]> {
+        const maxPaginationSize = options.maxPaginationSize ?? 100;
         const result: HygraphAsset[] = [];
         let skip = 0;
         try {
             let hasNextPage;
             do {
-                const queryResult = await this.contentClient.request<HygraphAssetConnectionResult>(getAssets, {
+                type ResponseType = {
+                    assetsConnection: {
+                        edges: { node: HygraphAsset }[];
+                        pageInfo: Pick<PageInfo, 'hasNextPage' | 'pageSize'>;
+                    };
+                };
+                const queryResult = await this.contentClient.request<ResponseType>(getAssets, {
                     first: options.maxPaginationSize ?? 100,
                     skip: skip
                 });
                 const hygraphAssets = queryResult.assetsConnection.edges.map((edge) => edge.node);
                 result.push(...hygraphAssets);
 
-                skip += queryResult.assetsConnection.pageInfo.pageSize;
+                skip += queryResult.assetsConnection.pageInfo.pageSize ?? maxPaginationSize;
                 hasNextPage = queryResult.assetsConnection.pageInfo.hasNextPage;
             } while (hasNextPage);
 
@@ -456,9 +608,8 @@ export class HygraphApiClient {
 
     async getAssetById(assetId: string): Promise<HygraphAsset | undefined> {
         try {
-            const result = await this.contentClient.request<{ asset: HygraphAsset }>(getAssetById, {
-                id: assetId
-            });
+            type ResponseType = { asset: HygraphAsset };
+            const result = await this.contentClient.request<ResponseType>(getAssetById, { id: assetId });
             return result.asset;
         } catch (error: any) {
             this.logger.warn(`Error fetching asset:\n${error.toString()}`);
@@ -466,10 +617,38 @@ export class HygraphApiClient {
         }
     }
 
+    async publishAssets(assetIds: string[]): Promise<void> {
+        try {
+            this.logger.debug(`Publish assets with ids: [${assetIds.join(', ')}]`);
+            type ResponseType = { publishManyAssetsConnection: { edges: { node: { id: string } }[] } };
+            const result = await this.contentClient.request<ResponseType>(publishAssets, {
+                assetIds: assetIds
+            });
+            const publishedAssetIds = result.publishManyAssetsConnection.edges.map((edge) => edge.node.id);
+            this.logger.debug(`Successfully published assets with ids: [${publishedAssetIds.join(', ')}]`);
+        } catch (error: any) {
+            this.logger.warn(`Error publishing assets:\n${error.toString()}}`);
+        }
+    }
+
+    async unpublishAssets(assetIds: string[]): Promise<void> {
+        try {
+            this.logger.debug(`Unpublish assets with ids: [${assetIds.join(', ')}]`);
+            type ResponseType = { unpublishManyAssetsConnection: { edges: { node: { id: string } }[] } };
+            const result = await this.contentClient.request<ResponseType>(unpublishAssets, {
+                assetIds: assetIds
+            });
+            const unpublishedAssetIds = result.unpublishManyAssetsConnection.edges.map((edge) => edge.node.id);
+            this.logger.debug(`Successfully unpublished assets with ids: [${unpublishedAssetIds.join(', ')}]`);
+        } catch (error: any) {
+            this.logger.warn(`Error unpublishing assets:\n${error.toString()}}`);
+        }
+    }
+
     async uploadAsset(options: HygraphAssetUploadOptions) {
         try {
             if (options.url) {
-                this.logger.debug(`Created asset from URL: ${options.url}`);
+                this.logger.debug(`Create asset from URL: ${options.url}, fileName: ${options.fileName}`);
                 const createAssetResponse = await this.createAssetWithURL({
                     fileName: options.fileName,
                     url: options.url
@@ -481,11 +660,11 @@ export class HygraphApiClient {
                 }
 
                 this.logger.debug(
-                    `Created asset from URL, id ${createAssetResponse.id}, status: ${createAssetResponse.upload.status}`
+                    `Successfully created asset from URL, id ${createAssetResponse.id}, status: ${createAssetResponse.upload.status}`
                 );
                 return createAssetResponse.id;
             } else {
-                this.logger.debug(`Created asset with post data`);
+                this.logger.debug(`Create asset with post data, fileName: ${options.fileName}`);
                 const createAssetResponse = await this.createAssetWithPostData({
                     fileName: options.fileName
                 });
@@ -537,13 +716,11 @@ export class HygraphApiClient {
         url: string;
     }): Promise<HygraphCreateAssetWithURLResponse> {
         try {
-            const response = await this.contentClient.request<{ createAsset: HygraphCreateAssetWithURLResponse }>(
-                createAssetWithURL,
-                {
-                    fileName: options.fileName,
-                    uploadUrl: options.url
-                }
-            );
+            type ResponseType = { createAsset: HygraphCreateAssetWithURLResponse };
+            const response = await this.contentClient.request<ResponseType>(createAssetWithURL, {
+                fileName: options.fileName,
+                uploadUrl: options.url
+            });
             return response.createAsset;
         } catch (error: any) {
             this.logger.warn(`Error creating asset:\n${error.toString()}`);
@@ -555,10 +732,10 @@ export class HygraphApiClient {
         fileName: string;
     }): Promise<HygraphCreateAssetWithPostDataResponse> {
         try {
-            const response = await this.contentClient.request<{ createAsset: HygraphCreateAssetWithPostDataResponse }>(
-                createAssetWithPostData,
-                { fileName: options.fileName }
-            );
+            type ResponseType = { createAsset: HygraphCreateAssetWithPostDataResponse };
+            const response = await this.contentClient.request<ResponseType>(createAssetWithPostData, {
+                fileName: options.fileName
+            });
             return response.createAsset;
         } catch (error: any) {
             this.logger.warn(`Error creating asset:\n${error.toString()}`);
@@ -576,14 +753,14 @@ function defaultDocumentQueryFields(options: {
         __typename: 1,
         id: 1,
         createdAt: 1,
-        createdBy: { id: 1 },
+        createdBy: { id: 1, name: 1, kind: 1 },
         updatedAt: 1,
-        updatedBy: { id: 1 },
+        updatedBy: { id: 1, name: 1, kind: 1 },
         publishedAt: 1,
-        publishedBy: { id: 1 },
+        publishedBy: { id: 1, name: 1, kind: 1 },
         stage: 1,
         documentInStages: {
-            __arguments: { stages: { enum: 'PUBLISHED' } },
+            __arguments: { stages: { __enum: 'PUBLISHED' } },
             stage: 1,
             updatedAt: 1
         },
@@ -629,8 +806,7 @@ function convertFieldsToQueryAST({
                 break;
             }
             case 'model': {
-                // TODO: fix issue with cyclic nesting and conflicts between
-                //  similar named fields between different components
+                // TODO: fix issue with cyclic nesting
                 const fieldInfo = model.context!.fieldInfoMap[field.name]!;
                 const multiModelField = fieldInfo.isMultiModel;
                 if (multiModelField) {
@@ -793,8 +969,10 @@ function serializeQueryArgValue(value: any) {
     if (_.isArray(value)) {
         value = `[${value.map(serializeQueryArgValue).join(', ')}]`;
     } else if (_.isPlainObject(value)) {
-        if (value.enum) {
-            value = value.enum;
+        if (value.__enum) {
+            value = value.__enum;
+        } else if (value.__raw) {
+            value = value.__raw;
         } else {
             value = serializeQueryArgObject(value);
         }
@@ -837,6 +1015,6 @@ function removeAliasFieldNames(entry?: HygraphEntry): HygraphEntry {
     );
 }
 
-function removeNewLinesAndCollapseSpaces(str?: string) {
-    return str?.replace(/\n/g, '').replace(/\s+/g, ' ');
+function removeNewLinesAndCollapseSpaces(str: string): string {
+    return str.replace(/\n/g, '').replace(/\s+/g, ' ');
 }

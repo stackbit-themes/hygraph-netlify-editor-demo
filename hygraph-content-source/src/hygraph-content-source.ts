@@ -1,6 +1,7 @@
+import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
 import type * as HygraphTypes from './gql-types/gql-management-types';
-import { HygraphApiClient, HygraphEntry, HygraphAsset, HygraphWebhook } from './hygraph-api-client';
+import { HygraphApiClient, HygraphEntry, HygraphAsset, HygraphWebhookPayload } from './hygraph-api-client';
 import { convertModels, SchemaContext, ModelContext, ModelWithContext } from './hygraph-schema-converter';
 import { convertDocument, convertDocuments, DocumentContext, DocumentWithContext } from './hygraph-entries-converter';
 import { convertAsset, convertAssets, AssetContext, AssetWithContext } from './hygraph-assets-converter';
@@ -11,32 +12,109 @@ interface HygraphContentSourceOptions {
      * Hygraph project ID. Can be found in project settings screen in Hygraph Studio.
      */
     projectId: string;
+
     /**
      * Hygraph project region. Can be found in project settings screen in Hygraph Studio.
      */
     region: string;
+
     /**
      * Hygraph project environment.
      * @default master
      */
     environment?: string;
+
     /**
      * Hygraph content API endpoint URL. Must match the configured region.
-     * e.g.: https://{REGION}.cdn.hygraph.com/content/{...}/{ENVIRONMENT}
+     * @example
+     * https://{REGION}.cdn.hygraph.com/content/{HASH}/{ENVIRONMENT}
      */
     contentApi: string;
+
     /**
      * Hygraph management API endpoint URL. Must match the configured region.
-     * e.g.: https://management-{REGION}.hygraph.com/graphql
+     * @example
+     * https://management-{REGION}.hygraph.com/graphql
      */
     managementApi: string;
+
     /**
      * The management token.
+     *
+     * The management token needs to have the following configuration:
+     * - Content API:
+     *   - Default stage for content delivery: "Draft"
+     *   - Content Permissions: Enable the following permissions for all models, all locales and all stages:
+     *     - Read
+     *     - Create
+     *     - Update
+     *     - Publish
+     *     - Unpublish
+     *     - Delete
+     *     - Read Version
+     * - Management API Permissions (total 21 permissions):
+     *   - Read existing environments
+     *   - Read existing models
+     *   - Read existing components
+     *   - Read existing fields
+     *   - Read existing enumerations
+     *   - Read remote sources
+     *   - Read stages
+     *   - Read locales
+     *   - Can see schema view
+     *   - Read existing entries
+     *   - Update existing non-published entries
+     *   - Update published entries
+     *   - Publish non-published entries
+     *   - Create new entries
+     *   - Delete existing entries
+     *   - Create new webhooks
+     *   - Read existing webhooks
+     *   - Update existing webhooks
+     *   - Delete an existing webhook
+     *   - Can see Role & Permissions Settings
+     *   - Can read content permissions
      */
     managementToken: string;
+
+    /**
+     * The `entriesFilter` can be used to filter entries fetched by the
+     * HygraphContentSource.
+     *
+     * The `entriesFilter` is set as the "where" argument of the GraphQL query
+     * used to fetch entries. Because every Hygraph model has different "where"
+     * properties, the `entriesFilter` is an object mapping between model's
+     * API ID and the filter value.
+     *
+     * **⚠️ Warning!**:
+     * You need to ensure that filtered-out entries are not referenced by
+     * entries that passed the provided filter. Otherwise, the visual-editor
+     * will show "Field is missing or inaccessible" errors in places where a
+     * reference field references a filtered-out entry. If your content
+     * architecture doesn't allow you to do so, consider using
+     * [permissionsForDocument]{@link StackbitTypes.StackbitConfig.permissionsForDocument}
+     * method of stackbit.config.ts.
+     *
+     * The entriesFilter` is used in the "where" clause only, therefore you
+     * can't use it to filter locales or stages.
+     *
+     * @see
+     * https://hygraph.com/docs/api-reference/content-api/filtering
+     *
+     * @example
+     * The following entries filter will fetch entries of type "Page" having
+     * their "enumField" set to "foo" and "title" containing "homepage". And
+     * fetch entries of type "Post" having "author" with name "john".
+     * ```js
+     * entriesFilter: {
+     *   Page: '{ enumField: foo, title_contains: "homepage" }',
+     *   Post: '{ author: { name: "john" } }'
+     * }
+     * ```
+     */
+    entriesFilter?: Record<string, string>;
 }
 
-// TODO: implement filtering of models and entries by passing options to graphql queries
 // TODO: implement caching
 
 export class HygraphContentSource
@@ -49,6 +127,7 @@ export class HygraphContentSource
     private contentApi: string;
     private managementApi: string;
     private managementToken: string;
+    private entriesFilter: Record<string, string> | undefined;
     private client!: HygraphApiClient;
     private logger!: StackbitTypes.Logger;
     private userLogger!: StackbitTypes.Logger;
@@ -62,6 +141,7 @@ export class HygraphContentSource
         this.contentApi = options.contentApi;
         this.managementApi = options.managementApi;
         this.managementToken = options.managementToken;
+        this.entriesFilter = options.entriesFilter;
     }
 
     async getVersion(): Promise<StackbitTypes.Version> {
@@ -139,6 +219,9 @@ export class HygraphContentSource
             components: schema.components,
             logger: this.logger
         });
+        this.logger.debug(
+            `got ${models.length} models, ${schema.enumerations.length} enumerations, ${schema.components.length} components, maxPaginationSize: ${schema.maxPaginationSize}`
+        );
         return {
             models: models,
             locales: [],
@@ -155,7 +238,12 @@ export class HygraphContentSource
             models,
             context: { maxPaginationSize }
         } = this.cache.getSchema();
-        const hygraphEntries = await this.client.getEntries({ models, maxPaginationSize });
+        const hygraphEntries = await this.client.getEntries({
+            models,
+            maxPaginationSize,
+            entriesFilter: this.entriesFilter
+        });
+        this.logger.debug(`got ${hygraphEntries.length} entries`);
         return convertDocuments({
             hygraphEntries,
             getModelByName: this.cache.getModelByName,
@@ -170,6 +258,7 @@ export class HygraphContentSource
             context: { maxPaginationSize, assetModelId }
         } = this.cache.getSchema();
         const hygraphAssets = await this.client.getAssets({ maxPaginationSize });
+        this.logger.debug(`got ${hygraphAssets.length} assets`);
         return convertAssets({
             hygraphAssets,
             assetModelId,
@@ -185,10 +274,19 @@ export class HygraphContentSource
         const result = await this.client.getWebhooks();
         const existingWebhook = result.webhooks.find((webhook) => webhook.url === webhookUrl);
         if (existingWebhook) {
-            this.logger.info(`The provided webhook \x1b[32m${webhookUrl}\x1b[0m. already exists in Hygraph.`);
+            if (!existingWebhook.isActive) {
+                this.logger.info(
+                    `The provided webhook \x1b[32m${webhookUrl}\x1b[0m already exists in Hygraph (${existingWebhook.name}, but it is not active. Activating webhook...`
+                );
+                await this.client.updateWebhook({ webhookId: existingWebhook.id });
+            } else {
+                this.logger.info(
+                    `The provided webhook \x1b[32m${webhookUrl}\x1b[0m already exists in Hygraph (${existingWebhook.name}).`
+                );
+            }
         } else {
             this.logger.info(
-                `The provided webhook \x1b[32m${webhookUrl}\x1b[0m. does not exist in Hygraph. Creating a new webhook...`
+                `The provided webhook \x1b[32m${webhookUrl}\x1b[0m does not exist in Hygraph. Creating a new webhook...`
             );
             const webhook = await this.client.createWebhook({
                 url: webhookUrl,
@@ -198,7 +296,13 @@ export class HygraphContentSource
         }
     }
 
-    async onWebhook({ data, headers }: { data: HygraphWebhook; headers: Record<string, string> }): Promise<void> {
+    async onWebhook({
+        data,
+        headers
+    }: {
+        data: HygraphWebhookPayload;
+        headers: Record<string, string>;
+    }): Promise<void> {
         const modelName = data.data.__typename;
         const isAsset = modelName === 'Asset';
         this.logger.debug(`got webhook request, ${modelName}:${data.operation}`);
@@ -254,9 +358,11 @@ export class HygraphContentSource
                         assetModelId: this.cache.getSchema().context.assetModelId,
                         baseManageUrl: this.getProjectManageUrl()
                     });
-                    this.cache.updateContent({
-                        assets: [asset]
-                    });
+                    this.cache
+                        .updateContent({
+                            assets: [asset]
+                        })
+                        .catch();
                 } else {
                     const cachedDocument = this.cache.getDocumentById(data.data.id);
                     let hygraphEntry: HygraphEntry | undefined;
@@ -291,21 +397,27 @@ export class HygraphContentSource
                     if (!document) {
                         return;
                     }
-                    this.cache.updateContent({
-                        documents: [document]
-                    });
+                    this.cache
+                        .updateContent({
+                            documents: [document]
+                        })
+                        .catch();
                 }
                 break;
             }
             case 'delete': {
                 if (isAsset) {
-                    this.cache.updateContent({
-                        deletedAssetIds: [data.data.id]
-                    });
+                    this.cache
+                        .updateContent({
+                            deletedAssetIds: [data.data.id]
+                        })
+                        .catch();
                 } else {
-                    this.cache.updateContent({
-                        deletedDocumentIds: [data.data.id]
-                    });
+                    this.cache
+                        .updateContent({
+                            deletedDocumentIds: [data.data.id]
+                        })
+                        .catch();
                 }
                 break;
             }
@@ -390,7 +502,7 @@ export class HygraphContentSource
             if (!hygraphAsset) {
                 throw new Error('Error finding uploaded asset');
             }
-        } while (hygraphAsset.upload.status === 'ASSET_CREATE_PENDING' && ++tries < 10);
+        } while (hygraphAsset.upload?.status === 'ASSET_CREATE_PENDING' && ++tries < 10);
 
         return convertAsset({
             hygraphAsset,
@@ -422,12 +534,24 @@ export class HygraphContentSource
         assets: AssetWithContext[];
         userContext?: StackbitTypes.User | undefined;
     }): Promise<void> {
-        // TODO: optimize - batch publish by IDs
-        for (const document of options.documents) {
-            await this.client.publishEntry({
-                entryId: document.id,
-                modelName: document.modelName
-            });
+        this.logger.debug(`publishing ${options.documents.length} documents and ${options.assets.length} assets`);
+        if (options.documents.length > 0) {
+            const entryMap = _.reduce(
+                options.documents,
+                (accum: Record<string, string[]>, doc) => {
+                    if (!accum[doc.modelName]) {
+                        accum[doc.modelName] = [];
+                    }
+                    accum[doc.modelName]!.push(doc.id);
+                    return accum;
+                },
+                {}
+            );
+            await this.client.publishEntries(entryMap);
+        }
+        if (options.assets.length > 0) {
+            const assetIds = options.assets.map((asset) => asset.id);
+            await this.client.publishAssets(assetIds);
         }
     }
 
@@ -436,31 +560,30 @@ export class HygraphContentSource
         assets: AssetWithContext[];
         userContext?: StackbitTypes.User | undefined;
     }): Promise<void> {
-        // TODO: optimize - batch publish by IDs
-        for (const document of options.documents) {
-            await this.client.unpublishEntry({
-                entryId: document.id,
-                modelName: document.modelName
-            });
+        this.logger.debug(`unpublishing ${options.documents.length} documents and ${options.assets.length} assets`);
+        if (options.documents.length > 0) {
+            const entryMap = _.reduce(
+                options.documents,
+                (accum: Record<string, string[]>, doc) => {
+                    if (!accum[doc.modelName]) {
+                        accum[doc.modelName] = [];
+                    }
+                    accum[doc.modelName]!.push(doc.id);
+                    return accum;
+                },
+                {}
+            );
+            await this.client.unpublishEntries(entryMap);
+        }
+        if (options.assets.length > 0) {
+            const assetIds = options.assets.map((asset) => asset.id);
+            await this.client.unpublishAssets(assetIds);
         }
     }
 
     /*
-     * Hygraph does not support archiving/unatchiving documents.
-     * When it does, implement the following methods to enable this capability in Netlify visual editor.
-     *
-    archiveDocument?(options: { document: DocumentWithContext; userContext?: StackbitTypes.User | undefined; }): Promise<void> {
-        throw new Error('Method not implemented.');
-    }
-
-    unarchiveDocument?(options: { document: DocumentWithContext; userContext?: StackbitTypes.User | undefined; }): Promise<void> {
-        throw new Error('Method not implemented.');
-    }
-    */
-
-    /*
      * Hygraph does support scheduled publishing.
-     * TODO: Implement the following methods
+     * TODO: Implement the scheduled publishing methods
 
     getScheduledActions?(): Promise<ScheduledAction[]> {
         throw new Error('Method not implemented.');
@@ -481,7 +604,7 @@ export class HygraphContentSource
 
     /*
      * Hygraph does support document versioning.
-     * TODO: Implement the following methods
+     * TODO: Implement the document versioning methods
     getDocumentVersions?(options: { documentId: string; }): Promise<{ versions: DocumentVersion[]; }> {
         throw new Error('Method not implemented.');
     }
@@ -495,4 +618,17 @@ export class HygraphContentSource
         const document = this.cache.getDocumentById(documentId);
         return document?.modelName;
     }
+
+    /*
+     * Hygraph does not support archiving/archiving documents.
+     * When it does, implement the following methods to enable this capability in Netlify visual editor.
+     *
+    archiveDocument?(options: { document: DocumentWithContext; userContext?: StackbitTypes.User | undefined; }): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
+
+    unarchiveDocument?(options: { document: DocumentWithContext; userContext?: StackbitTypes.User | undefined; }): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
+    */
 }
