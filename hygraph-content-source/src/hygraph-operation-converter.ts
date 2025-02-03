@@ -3,6 +3,8 @@ import type * as StackbitTypes from '@stackbit/types';
 import { getDocumentFieldAtFieldPath } from '@stackbit/utils';
 import type { DocumentWithContext } from './hygraph-entries-converter';
 import type { ModelWithContext } from './hygraph-schema-converter';
+import { wrapEnumValue } from './hygraph-api-client';
+import { hexToColor } from './utils';
 
 /**
  * Converts a map of {@link StackbitTypes.UpdateOperationFields} into the "data"
@@ -109,7 +111,7 @@ export function convertOperations({
                                 (item) => item.value
                             );
                             if (operation.modelField.type === 'enum') {
-                                newList = newList.map((value) => ({ enum: value }));
+                                newList = newList.map((value) => wrapEnumValue(value));
                             }
                             const itemIndex = _.last(operation.fieldPath) as number;
                             newList.splice(itemIndex, 1, value);
@@ -172,7 +174,7 @@ export function convertOperations({
                                 if (_.isArray(objValue)) {
                                     return objValue.concat(srcValue);
                                 }
-                            }
+                            };
                             return { [action]: [value] };
                         } else {
                             const documentField = getDocumentFieldAtFieldPath({
@@ -186,7 +188,7 @@ export function convertOperations({
                                 (item) => item.value
                             );
                             if (operation.modelField.items.type === 'enum') {
-                                newList = newList.map((value) => ({ enum: value }));
+                                newList = newList.map((value) => wrapEnumValue(value));
                             }
                             // When adding new string/text items to lists from visual-editor, the value may be undefined,
                             // this breaks GraphQL. Set the value to empty string to fix this behavior.
@@ -226,10 +228,10 @@ export function convertOperations({
                                 throw new Error(`Error updating document, cannot reorder non list field`);
                             }
                             let newList = (documentField.items as SimpleDocumentListFieldItems[]).map(
-                              (item) => item.value
+                                (item) => item.value
                             );
                             if (operation.modelField.items.type === 'enum') {
-                                newList = newList.map((value) => ({ enum: value }));
+                                newList = newList.map((value) => wrapEnumValue(value));
                             }
                             newList.splice(operation.index, 1);
                             return newList;
@@ -238,17 +240,17 @@ export function convertOperations({
                             const nestedModelInfo = document.context.nestedModelsInfo[fieldPathStr];
                             if (!nestedModelInfo) {
                                 throw new Error(
-                                  `Error updating document, component ID at path ${fieldPathStr} not found`
+                                    `Error updating document, component ID at path ${fieldPathStr} not found`
                                 );
                             }
                             const deleteObject = { id: nestedModelInfo.id };
                             const action = modelField.items.type === 'model' ? 'delete' : 'disconnect';
                             return {
                                 [action]: nestedModelInfo.isMultiModel
-                                  ? {
-                                      [nestedModelInfo.modelName]: deleteObject
-                                  }
-                                  : deleteObject
+                                    ? {
+                                          [nestedModelInfo.modelName]: deleteObject
+                                      }
+                                    : deleteObject
                             };
                         }
                     }
@@ -314,7 +316,7 @@ export function convertOperations({
                         (newIndex) => (documentField.items as SimpleDocumentListFieldItems[])[newIndex]!.value
                     );
                     if (operation.modelField.items.type === 'enum') {
-                        newList = newList.map((value) => ({ enum: value }));
+                        newList = newList.map((value) => wrapEnumValue(value as string));
                     }
                 }
 
@@ -616,9 +618,13 @@ function convertUpdateOperationFieldToValue({
         }
     } else if (updateOperationField.type === 'enum') {
         // serializeQueryArgValue expects enum values to be wrapped in an object with 'enum' property
-        return {
-            enum: updateOperationField.value
-        };
+        return wrapEnumValue(updateOperationField.value);
+    } else if (updateOperationField.type === 'color') {
+        if (typeof updateOperationField.value === 'string') {
+            return hexToColor(updateOperationField.value);
+        } else {
+            return null;
+        }
     } else {
         return updateOperationField.value;
     }

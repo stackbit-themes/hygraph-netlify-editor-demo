@@ -3,6 +3,7 @@ import type * as StackbitTypes from '@stackbit/types';
 import { omitByUndefined } from '@stackbit/utils';
 import type { HygraphEntry } from './hygraph-api-client';
 import type { FieldInfo, ModelWithContext } from './hygraph-schema-converter';
+import { colorToHex } from './utils';
 
 export type DocumentWithContext = StackbitTypes.Document<DocumentContext>;
 export type DocumentContext = {
@@ -191,7 +192,7 @@ function convertField({
         case 'color': {
             return {
                 type: modelField.type,
-                value: fieldValue.hex
+                value: colorToHex(fieldValue)
             };
         }
         case 'json': {

@@ -3,41 +3,8 @@ import type * as StackbitTypes from '@stackbit/types';
 import { omitByNil } from '@stackbit/utils';
 import type * as HygraphTypes from './gql-types/gql-management-types';
 import { SimpleFieldType, RelationalFieldType, VisibilityTypes } from './gql-types/gql-management-types';
-
-// The generated graphql types in the "gql-management-types.ts" file include the original field names.
-// However, some fields in the "schema.ts" query were aliased due to conflicts between types.
-// Remap some of the field names matching aliases in the query.
-type HygraphField =
-    | (Omit<HygraphTypes.SimpleField, 'type' | 'validations'> & {
-          fieldType: HygraphTypes.SimpleField['type'];
-          validations?:
-              | Exclude<HygraphTypes.SimpleFieldValidations, HygraphTypes.FloatFieldValidations>
-              | (Omit<HygraphTypes.FloatFieldValidations, 'range'> & {
-                    floatRange?: HygraphTypes.FloatFieldValidations['range'];
-                });
-      })
-    | (Omit<HygraphTypes.EnumerableField, 'type' | 'initialValue'> & {
-          enumType: HygraphTypes.EnumerableFieldType;
-          defaultEnumerationValue?: HygraphTypes.EnumerableField['initialValue'];
-      })
-    | (Omit<HygraphTypes.ComponentField, 'type'> & {
-          componentType: HygraphTypes.ComponentField['type'];
-      })
-    | (Omit<HygraphTypes.ComponentUnionField, 'type'> & {
-          componentUnionType: HygraphTypes.ComponentUnionField['type'];
-      })
-    | (Omit<HygraphTypes.RelationalField, 'type'> & {
-          relationType: HygraphTypes.RelationalFieldType;
-      })
-    | (Omit<HygraphTypes.UniDirectionalRelationalField, 'type'> & {
-          relationType: HygraphTypes.RelationalFieldType;
-      })
-    | (Omit<HygraphTypes.UnionField, 'type'> & {
-          unionType: HygraphTypes.UnionField['type'];
-      })
-    | (Omit<HygraphTypes.RemoteField, 'type'> & {
-          remoteType: HygraphTypes.RemoteField['type'];
-      });
+import { HygraphField } from './hygraph-api-client';
+import { colorToHex } from './utils';
 
 type EnumOptionsById = Record<string, StackbitTypes.FieldEnumOptionObject[]>;
 
@@ -178,26 +145,30 @@ function convertField({
     };
     switch (field.__typename) {
         case 'SimpleField': {
-            switch (field.fieldType) {
+            switch (field.type) {
                 case SimpleFieldType.String: {
                     const rendered = field.formConfig?.renderer;
                     switch (rendered) {
                         case 'GCMS_MULTI_LINE':
                             return toFieldOrListField(field, {
-                                type: 'text'
+                                type: 'text',
+                                ...convertStringValidations(field)
                             });
                         case 'GCMS_SLUG':
                             return toFieldOrListField(field, {
-                                type: 'slug'
+                                type: 'slug',
+                                ...convertStringValidations(field)
                             });
                         case 'GCMS_MARKDOWN':
                             return toFieldOrListField(field, {
-                                type: 'markdown'
+                                type: 'markdown',
+                                ...convertStringValidations(field)
                             });
                         case 'GCMS_SINGLE_LINE':
                         default:
                             return toFieldOrListField(field, {
-                                type: 'string'
+                                type: 'string',
+                                ...convertStringValidations(field)
                             });
                     }
                 }
@@ -207,8 +178,6 @@ function convertField({
                     });
                 }
                 case SimpleFieldType.Color: {
-                    // TODO: convert default color value to hex string
-                    // { rgba: { r: 255, g: 255, b: 255, a: 1 } } => #FFFFFFFF
                     return toFieldOrListField(field, {
                         type: 'color'
                     });
@@ -226,17 +195,21 @@ function convertField({
                 case SimpleFieldType.Int: {
                     return toFieldOrListField(field, {
                         type: 'number',
-                        subtype: 'int'
+                        subtype: 'int',
+                        ...convertNumberValidations(field)
                     });
                 }
                 case SimpleFieldType.Float: {
                     return toFieldOrListField(field, {
                         type: 'number',
-                        subtype: 'float'
+                        subtype: 'float',
+                        ...convertNumberValidations(field)
                     });
                 }
                 case SimpleFieldType.Id: {
                     // ID is a system field, we filtered all isSystem fields in the previous step.
+                    // We have this case to ensure we exhaust all possible field.type values so
+                    // the default case with _exhaustiveCheck won't raise TypeScript error.
                     logger.warn(warningMessage('The field is a system ID field.'));
                     return null;
                 }
@@ -246,7 +219,7 @@ function convertField({
                     });
                 }
                 case SimpleFieldType.Location: {
-                    // Netlify create doesn't support location fields yet.
+                    // Netlify Visual-Editor doesn't support location fields yet.
                     // Leave it as json field, json fields are not shown in the visual editor.
                     return null;
                 }
@@ -256,7 +229,7 @@ function convertField({
                     });
                 }
                 default: {
-                    const _exhaustiveCheck: never = field.fieldType;
+                    const _exhaustiveCheck: never = field;
                     return _exhaustiveCheck;
                 }
             }
@@ -269,7 +242,8 @@ function convertField({
             }
             return toFieldOrListField(field, {
                 type: 'enum',
-                options: enumOptions
+                options: enumOptions,
+                ...convertEnumValidations(field)
             });
         }
         case 'ComponentField': {
@@ -296,7 +270,7 @@ function convertField({
         }
         case 'UniDirectionalRelationalField': {
             // Single model, one-way reference
-            if (field.relationType !== RelationalFieldType.Relation) {
+            if (field.type !== RelationalFieldType.Relation) {
                 logger.warn(
                     warningMessage("UniDirectionalRelationalField of non type other than 'relation' is not supported.")
                 );
@@ -314,7 +288,7 @@ function convertField({
         }
         case 'RelationalField': {
             // Single model, two-way references. The back-reference is also RelationalField.
-            if (field.relationType === RelationalFieldType.Relation) {
+            if (field.type === RelationalFieldType.Relation) {
                 fieldInfoMap[field.apiId] = {
                     type: 'reference',
                     hygraphType: 'RelationalField',
@@ -365,6 +339,7 @@ function toFieldOrListField(
         ? {
               type: 'list',
               ...convertFieldCommonProps(hgField),
+              ...convertListValidations(hgField),
               items: {
                   ...fieldSpecificProps
               }
@@ -385,24 +360,129 @@ function convertFieldCommonProps(field: HygraphField): StackbitTypes.FieldCommon
         default: parseDefaultValue(field),
         hidden: field.visibility === VisibilityTypes.Hidden || undefined,
         readOnly: field.visibility === VisibilityTypes.ReadOnly || undefined
-        // TODO: implement validations
-        // validations: ...
     });
 }
 
 function parseDefaultValue(field: HygraphField): any {
     if ('initialValue' in field) {
+        if (field.__typename === 'EnumerableField') {
+            if (field.isList) {
+                return field.initialValueList?.map((item) => item.apiId);
+            } else {
+                return field.initialValue?.apiId;
+            }
+        }
         if (typeof field.initialValue === 'string') {
             try {
-                return JSON.parse(field.initialValue);
+                const value = JSON.parse(field.initialValue);
+                if (field.type === SimpleFieldType.Color) {
+                    // Color field has "rgba" value, but visual editor uses hex.
+                    // { rgba: { r: 255, g: 255, b: 255, a: 1 } } => #FFFFFFFF
+                    return colorToHex(value);
+                }
+                return value;
             } catch (error) {
                 return undefined;
             }
         }
-    } else if ('defaultEnumerationValue' in field) {
-        return field.defaultEnumerationValue?.apiId;
     }
     return undefined;
+}
+
+function convertStringValidations(field: HygraphTypes.SimpleField) {
+    let validations:
+        | (StackbitTypes.FieldValidationsUnique &
+              StackbitTypes.FieldValidationsStringLength &
+              StackbitTypes.FieldValidationsRegExp)
+        | undefined = {
+        errors: {}
+    };
+    if (field.isUnique) {
+        validations.unique = true;
+    }
+    if (field.validations) {
+        if ('characters' in field.validations && field.validations.characters) {
+            validations.min = field.validations.characters.min ?? undefined;
+            validations.max = field.validations.characters.max ?? undefined;
+            if (field.validations.characters.errorMessage) {
+                validations.errors!.min = field.validations.characters.errorMessage;
+                validations.errors!.max = field.validations.characters.errorMessage;
+            }
+        }
+        if ('matches' in field.validations && field.validations.matches) {
+            validations.regexp = field.validations.matches.regex ?? undefined;
+            if (field.validations.matches.errorMessage) {
+                validations.errors!.regexp = field.validations.matches.errorMessage;
+            }
+        }
+        if ('notMatches' in field.validations && field.validations.notMatches) {
+            validations.regexpNot = field.validations.notMatches.regex ?? undefined;
+            if (field.validations.notMatches.errorMessage) {
+                validations.errors!.regexpNot = field.validations.notMatches.errorMessage;
+            }
+        }
+    }
+    return sanitizeValidations(validations);
+}
+
+function convertNumberValidations(field: HygraphTypes.SimpleField) {
+    let validations: (StackbitTypes.FieldValidationsUnique & StackbitTypes.FieldValidationsNumberRange) | undefined = {
+        errors: {}
+    };
+    if (field.isUnique) {
+        validations.unique = true;
+    }
+    if (field.validations && 'range' in field.validations && field.validations.range) {
+        validations.min = field.validations.range.min ?? undefined;
+        validations.max = field.validations.range.max ?? undefined;
+        if (field.validations.range.errorMessage) {
+            validations.errors!.min = field.validations.range.errorMessage;
+            validations.errors!.max = field.validations.range.errorMessage;
+        }
+    }
+    return sanitizeValidations(validations);
+}
+
+function convertEnumValidations(field: HygraphTypes.EnumerableField) {
+    let validations: StackbitTypes.FieldValidationsUnique | undefined = { errors: {} };
+    if (field.isUnique) {
+        validations.unique = true;
+    }
+    return sanitizeValidations(validations);
+}
+
+function convertListValidations(field: HygraphField) {
+    let validations: StackbitTypes.FieldValidationsListLength | undefined = { errors: {} };
+    if (
+        'validations' in field &&
+        field.validations &&
+        'listItemCount' in field.validations &&
+        field.validations.listItemCount
+    ) {
+        validations.min = field.validations.listItemCount.min ?? undefined;
+        validations.max = field.validations.listItemCount.max ?? undefined;
+        if (field.validations.listItemCount.errorMessage) {
+            validations.errors!.min = field.validations.listItemCount.errorMessage;
+            validations.errors!.max = field.validations.listItemCount.errorMessage;
+        }
+    }
+    return sanitizeValidations(validations);
+}
+
+function sanitizeValidations<
+    Type extends StackbitTypes.FieldValidationsUnique &
+        StackbitTypes.FieldValidationsStringLength &
+        StackbitTypes.FieldValidationsRegExp &
+        StackbitTypes.FieldValidationsNumberRange &
+        StackbitTypes.FieldValidationsListLength
+>(validations: Type): { validations: Type } | undefined {
+    if (_.isEmpty(validations.errors)) {
+        delete validations.errors;
+    }
+    if (_.isEmpty(validations)) {
+        return undefined;
+    }
+    return { validations };
 }
 
 function convertToEnumOptionsById(enumerations: HygraphTypes.Enumeration[]): EnumOptionsById {

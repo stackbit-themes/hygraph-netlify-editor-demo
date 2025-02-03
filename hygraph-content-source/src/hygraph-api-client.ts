@@ -2,7 +2,7 @@ import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
 import { deepMap } from '@stackbit/utils';
 import { GraphQLClient } from 'graphql-request';
-import type { Query, Webhook } from './gql-types/gql-management-types';
+import type * as HygraphTypes from './gql-types/gql-management-types';
 import {
     Asset,
     AssetUpload,
@@ -24,6 +24,51 @@ import {
     publishAssets,
     unpublishAssets
 } from './gql-queries/assets';
+
+// The generated graphql types in the "gql-management-types.ts" file include the original field properties.
+// However, some fields in the "schema.ts" query were aliased due to conflicts between types.
+// Remap some of the field names matching aliases in the query.
+type AliasedHygraphField =
+    | (Omit<HygraphTypes.SimpleField, 'type' | 'validations'> & {
+          type_simple: HygraphTypes.SimpleField['type'];
+          validations?:
+              | Exclude<HygraphTypes.SimpleFieldValidations, HygraphTypes.FloatFieldValidations>
+              | (Omit<HygraphTypes.FloatFieldValidations, 'range'> & {
+                    range_float?: HygraphTypes.FloatFieldValidations['range'];
+                });
+      })
+    | (Omit<HygraphTypes.EnumerableField, 'type' | 'initialValue'> & {
+          type_enum: HygraphTypes.EnumerableFieldType;
+          initialValue_enum?: HygraphTypes.EnumerableField['initialValue'];
+      })
+    | (Omit<HygraphTypes.ComponentField, 'type'> & {
+          type_component: HygraphTypes.ComponentField['type'];
+      })
+    | (Omit<HygraphTypes.ComponentUnionField, 'type'> & {
+          type_componentUnion: HygraphTypes.ComponentUnionField['type'];
+      })
+    | (Omit<HygraphTypes.RelationalField, 'type'> & {
+          type_relation: HygraphTypes.RelationalFieldType;
+      })
+    | (Omit<HygraphTypes.UniDirectionalRelationalField, 'type'> & {
+          type_relation: HygraphTypes.RelationalFieldType;
+      })
+    | (Omit<HygraphTypes.UnionField, 'type'> & {
+          type_union: HygraphTypes.UnionField['type'];
+      })
+    | (Omit<HygraphTypes.RemoteField, 'type'> & {
+          type_remote: HygraphTypes.RemoteField['type'];
+      });
+
+export type HygraphField =
+    | HygraphTypes.SimpleField
+    | HygraphTypes.EnumerableField
+    | HygraphTypes.ComponentField
+    | HygraphTypes.ComponentUnionField
+    | HygraphTypes.RelationalField
+    | HygraphTypes.UniDirectionalRelationalField
+    | HygraphTypes.UnionField
+    | HygraphTypes.RemoteField;
 
 export type HygraphEntryConnectionResult = Record<
     string,
@@ -78,7 +123,7 @@ export type GetWebhooksResult = {
         project?: {
             environment: {
                 id: string;
-                webhooks: Pick<Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>[];
+                webhooks: Pick<HygraphTypes.Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>[];
             };
         };
     };
@@ -86,13 +131,13 @@ export type GetWebhooksResult = {
 
 export type CreateWebhookResponse = {
     createWebhook: {
-        createdWebhook: Pick<Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>;
+        createdWebhook: Pick<HygraphTypes.Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>;
     };
 };
 
 export type UpdateWebhookResponse = {
     updateWebhook: {
-        updatedWebhook: Pick<Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>;
+        updatedWebhook: Pick<HygraphTypes.Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>;
     };
 };
 
@@ -198,12 +243,21 @@ export class HygraphApiClient {
     }
 
     async getSchema() {
-        const result = await this.managementClient.request<Query>(getSchema, {
+        const result = await this.managementClient.request<HygraphTypes.Query>(getSchema, {
             projectId: this.projectId,
             environmentName: this.environment
         });
 
         const environment = result.viewer.project?.environment;
+        if (environment) {
+            const { models, components, ...rest } = environment.contentModel;
+            environment.contentModel = {
+                ...rest,
+                models: models.map((model) => removeSchemaAliases(model)),
+                components: components.map((component) => removeSchemaAliases(component))
+            };
+        }
+
         return {
             models: environment?.contentModel.models ?? [],
             components: environment?.contentModel.components ?? [],
@@ -257,7 +311,7 @@ export class HygraphApiClient {
             const queryModelName = toLowerCaseFirst(model.context!.pluralId) + 'Connection';
             queryAst.query[queryModelName] = {
                 __arguments: {
-                    stage: { __enum: 'DRAFT' },
+                    stage: wrapEnumValue('DRAFT'),
                     first: maxPaginationSize,
                     skip: 0,
                     ...(entriesFilter?.[model.name] ? { where: { __raw: entriesFilter[model.name] } } : null)
@@ -330,7 +384,7 @@ export class HygraphApiClient {
             query: {
                 [queryModelName]: {
                     __arguments: {
-                        stage: { __enum: 'DRAFT' },
+                        stage: wrapEnumValue('DRAFT'),
                         where: { id: entryId }
                     },
                     ...defaultDocumentQueryFields({
@@ -448,7 +502,7 @@ export class HygraphApiClient {
                 [publishModelName]: {
                     __arguments: {
                         where: { id: entryId },
-                        to: { __enum: 'PUBLISHED' }
+                        to: wrapEnumValue('PUBLISHED')
                     },
                     id: 1
                 }
@@ -472,7 +526,7 @@ export class HygraphApiClient {
                 [publishModelName]: {
                     __arguments: {
                         where: { id: entryId },
-                        from: { __enum: 'PUBLISHED' }
+                        from: wrapEnumValue('PUBLISHED')
                     },
                     id: 1
                 }
@@ -496,7 +550,7 @@ export class HygraphApiClient {
             queryAst.mutation[publishManyConnection] = {
                 __arguments: {
                     where: { id_in: entryIds },
-                    to: { __enum: 'PUBLISHED' }
+                    to: wrapEnumValue('PUBLISHED')
                 },
                 edges: {
                     node: {
@@ -539,7 +593,7 @@ export class HygraphApiClient {
             queryAst.mutation[unpublishManyConnection] = {
                 __arguments: {
                     where: { id_in: entryIds },
-                    from: { __enum: 'PUBLISHED' }
+                    from: wrapEnumValue('PUBLISHED')
                 },
                 edges: {
                     node: {
@@ -744,6 +798,10 @@ export class HygraphApiClient {
     }
 }
 
+export function wrapEnumValue(value: string) {
+    return { __enum: value };
+}
+
 function defaultDocumentQueryFields(options: {
     model: ModelWithContext;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
@@ -760,7 +818,7 @@ function defaultDocumentQueryFields(options: {
         publishedBy: { id: 1, name: 1, kind: 1 },
         stage: 1,
         documentInStages: {
-            __arguments: { stages: { __enum: 'PUBLISHED' } },
+            __arguments: { stages: wrapEnumValue('PUBLISHED') },
             stage: 1,
             updatedAt: 1
         },
@@ -794,7 +852,7 @@ function convertFieldsToQueryAST({
             case 'color': {
                 fieldAst[field.name] = {
                     __typename: 1,
-                    hex: 1
+                    rgba: { r: 1, g: 1, b: 1, a: 1 }
                 };
                 break;
             }
@@ -1013,6 +1071,56 @@ function removeAliasFieldNames(entry?: HygraphEntry): HygraphEntry {
             includeKeyPath: true
         }
     );
+}
+
+function removeSchemaAliases<Type extends HygraphTypes.IModel | HygraphTypes.Component>(entity: Type): Type {
+    return {
+        ...entity,
+        fields: (entity.fields as AliasedHygraphField[]).map((field): HygraphField => {
+            if ('type_simple' in field) {
+                const { type_simple, validations, ...restField } = field;
+                let convertedValidations: HygraphTypes.SimpleFieldValidations | undefined;
+                if (validations && 'range_float' in validations) {
+                    const { range_float, ...restValidations } = validations;
+                    convertedValidations = {
+                        ...restValidations,
+                        range: range_float
+                    };
+                } else if (validations) {
+                    convertedValidations = validations;
+                }
+                return {
+                    type: type_simple,
+                    ...restField,
+                    ...(convertedValidations ? { validations: convertedValidations } : null)
+                };
+            } else if ('type_enum' in field) {
+                const { type_enum, initialValue_enum, ...restField } = field;
+                return {
+                    type: type_enum,
+                    ...restField,
+                    ...(initialValue_enum ? { initialValue: initialValue_enum } : null)
+                };
+            } else if ('type_relation' in field) {
+                const { type_relation, ...restField } = field;
+                return { type: type_relation, ...restField };
+            } else if ('type_union' in field) {
+                const { type_union, ...restField } = field;
+                return { type: type_union, ...restField };
+            } else if ('type_remote' in field) {
+                const { type_remote, ...restField } = field;
+                return { type: type_remote, ...restField };
+            } else if ('type_component' in field) {
+                const { type_component, ...restField } = field;
+                return { type: type_component, ...restField };
+            } else if ('type_componentUnion' in field) {
+                const { type_componentUnion, ...restField } = field;
+                return { type: type_componentUnion, ...restField };
+            }
+            const _exhaustiveCheck: never = field;
+            return _exhaustiveCheck;
+        })
+    };
 }
 
 function removeNewLinesAndCollapseSpaces(str: string): string {

@@ -100,7 +100,7 @@ export const getSchema = gql`
             isLocalized
         }
         ... on SimpleField {
-            fieldType: type
+            type_simple: type
             initialValue
             embedsEnabled
             embeddableModels {
@@ -111,8 +111,12 @@ export const getSchema = gql`
         }
         ...ValidationsFragment
         ... on EnumerableField {
-            enumType: type
-            defaultEnumerationValue: initialValue {
+            type_enum: type
+            initialValue_enum: initialValue {
+                __typename
+                ...EnumerationValuesFragment
+            }
+            initialValueList {
                 __typename
                 ...EnumerationValuesFragment
             }
@@ -123,7 +127,7 @@ export const getSchema = gql`
             }
         }
         ... on RelationalField {
-            relationType: type
+            type_relation: type
             relatedModel {
                 __typename
                 id
@@ -131,7 +135,7 @@ export const getSchema = gql`
             }
         }
         ... on UniDirectionalRelationalField {
-            relationType: type
+            type_relation: type
             relatedModel {
                 __typename
                 id
@@ -139,7 +143,7 @@ export const getSchema = gql`
             }
         }
         ... on UnionField {
-            unionType: type
+            type_union: type
             isMemberType
             union {
                 __typename
@@ -168,11 +172,11 @@ export const getSchema = gql`
             }
         }
         ... on RemoteField {
-            remoteType: type
+            type_remote: type
             ...FieldRemoteFragment
         }
         ... on ComponentField {
-            componentType: type
+            type_component: type
             component {
                 __typename
                 id
@@ -180,7 +184,7 @@ export const getSchema = gql`
             }
         }
         ... on ComponentUnionField {
-            componentUnionType: type
+            type_componentUnion: type
             components {
                 __typename
                 id
@@ -234,7 +238,7 @@ export const getSchema = gql`
                     }
                 }
                 ... on FloatFieldValidations {
-                    floatRange: range {
+                    range_float: range {
                         __typename
                         min
                         max

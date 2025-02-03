@@ -97,7 +97,7 @@ fragment FieldFragment on IField {
         isLocalized
     }
     ... on SimpleField {
-        fieldType: type
+        type_simple: type
         initialValue
         embedsEnabled
         embeddableModels {
@@ -108,10 +108,14 @@ fragment FieldFragment on IField {
     }
     ...ValidationsFragment
     ... on EnumerableField {
-        enumType: type
-        defaultEnumerationValue: initialValue {
+        type_enum: type
+        initialValue_enum: initialValue {
             __typename
             ...EnumerationValuesFragment
+            }
+            initialValueList {
+                __typename
+                ...EnumerationValuesFragment
         }
         enumeration {
             __typename
@@ -120,7 +124,7 @@ fragment FieldFragment on IField {
         }
     }
     ... on RelationalField {
-        relationType: type
+        type_relation: type
         relatedModel {
             __typename
             id
@@ -128,7 +132,7 @@ fragment FieldFragment on IField {
         }
     }
     ... on UniDirectionalRelationalField {
-        relationType: type
+        type_relation: type
         relatedModel {
             __typename
             id
@@ -136,7 +140,7 @@ fragment FieldFragment on IField {
         }
     }
     ... on UnionField {
-        unionType: type
+        type_union: type
         isMemberType
         union {
             __typename
@@ -165,11 +169,11 @@ fragment FieldFragment on IField {
         }
     }
     ... on RemoteField {
-        remoteType: type
+        type_remote: type
         ...FieldRemoteFragment
     }
     ... on ComponentField {
-        componentType: type
+        type_component: type
         component {
             __typename
             id
@@ -177,7 +181,7 @@ fragment FieldFragment on IField {
         }
     }
     ... on ComponentUnionField {
-        componentUnionType: type
+        type_componentUnion: type
         components {
             __typename
             id
@@ -231,7 +235,7 @@ fragment ValidationsFragment on IField {
                 }
             }
             ... on FloatFieldValidations {
-                floatRange: range {
+                range_float: range {
                     __typename
                     min
                     max

@@ -8,6 +8,7 @@ projects:
     include:
       - "./gql-queries/schema.ts"
       - "./gql-queries/webhooks.ts"
+      - "./gql-queries/schema.graphql"
     extensions:
       endpoints:
         hygraph_management:
