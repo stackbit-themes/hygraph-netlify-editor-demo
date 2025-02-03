@@ -84,9 +84,9 @@ export function convertDocument({
         manageUrl: `${baseManageUrl}/content/${modelId}/entry/${hygraphEntry.id}`,
         status: getDocumentStatus(hygraphEntry),
         createdAt: hygraphEntry.createdAt,
-        createdBy: undefined, // TODO: fetch users and assign by IDs
+        createdBy: hygraphEntry.createdBy?.name,
         updatedAt: hygraphEntry.updatedAt,
-        updatedBy: undefined, // TODO: fetch users and assign by IDs
+        updatedBy: hygraphEntry.updatedBy?.name ? [hygraphEntry.updatedBy.name] : undefined,
         context: {
             nestedModelsInfo
         },

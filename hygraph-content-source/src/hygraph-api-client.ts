@@ -11,7 +11,7 @@ import {
     Maybe,
     ScheduledOperation,
     Version,
-    UserKind
+    User
 } from './gql-types/gql-content-types';
 import type { ModelWithContext } from './hygraph-schema-converter';
 import { getSchema } from './gql-queries/schema';
@@ -146,11 +146,7 @@ export type HygraphWebhookPayload = {
     data: HygraphEntry | HygraphAsset;
 };
 
-export type HygraphUser = {
-    id: string;
-    name: string;
-    kind: UserKind;
-};
+export type HygraphUser = Pick<User, 'id' | 'name' | 'kind'>;
 
 export interface HygraphApiClientOptions {
     projectId: string;

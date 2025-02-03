@@ -38,9 +38,9 @@ export function convertAsset({
         manageUrl: `${baseManageUrl}/assets/${assetModelId}/entry/${hygraphAsset.id}`,
         status: getAssetStatus(hygraphAsset),
         createdAt: hygraphAsset.createdAt,
-        createdBy: undefined, // TODO: fetch users and assign by IDs
+        createdBy: hygraphAsset.createdBy?.name,
         updatedAt: hygraphAsset.updatedAt,
-        updatedBy: undefined, // TODO: fetch users and assign by IDs
+        updatedBy: hygraphAsset.updatedBy?.name ? [hygraphAsset.updatedBy.name] : undefined,
         context: {},
         fields: {
             title: {

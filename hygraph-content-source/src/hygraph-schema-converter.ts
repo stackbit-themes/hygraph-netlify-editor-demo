@@ -321,8 +321,7 @@ function convertField({
             });
         }
         case 'RemoteField': {
-            // TODO: implement remote field
-            logger.warn(warningMessage('RemoteField is not yet implemented.'));
+            logger.warn(warningMessage('RemoteField is not implemented.'));
             return null;
         }
         default: {
