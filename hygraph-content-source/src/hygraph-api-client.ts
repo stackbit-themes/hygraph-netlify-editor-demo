@@ -498,7 +498,7 @@ export class HygraphApiClient {
     async publishEntries(entryMap: Record<string, string[]>): Promise<void> {
         const queryAst: any = { mutation: {} };
         for (const [pluralModelName, entryIds] of Object.entries(entryMap)) {
-            const publishManyConnection = `publishMany${toLowerCaseFirst(pluralModelName)}Connection`;
+            const publishManyConnection = `publishMany${pluralModelName}Connection`;
             queryAst.mutation[publishManyConnection] = {
                 __arguments: {
                     where: { id_in: entryIds },
@@ -541,7 +541,7 @@ export class HygraphApiClient {
     async unpublishEntries(entryMap: Record<string, string[]>): Promise<void> {
         const queryAst: any = { mutation: {} };
         for (const [pluralModelName, entryIds] of Object.entries(entryMap)) {
-            const unpublishManyConnection = `unpublishMany${toLowerCaseFirst(pluralModelName)}Connection`;
+            const unpublishManyConnection = `unpublishMany${pluralModelName}Connection`;
             queryAst.mutation[unpublishManyConnection] = {
                 __arguments: {
                     where: { id_in: entryIds },

@@ -571,10 +571,11 @@ export class HygraphContentSource
             const entryMap = _.reduce(
                 options.documents,
                 (accum: Record<string, string[]>, doc) => {
-                    if (!accum[doc.modelName]) {
-                        accum[doc.modelName] = [];
+                    const pluralModelName = this.cache.getModelByName(doc.modelName)!.context!.pluralId;
+                    if (!accum[pluralModelName]) {
+                        accum[pluralModelName] = [];
                     }
-                    accum[doc.modelName]!.push(doc.id);
+                    accum[pluralModelName]!.push(doc.id);
                     return accum;
                 },
                 {}
@@ -597,10 +598,11 @@ export class HygraphContentSource
             const entryMap = _.reduce(
                 options.documents,
                 (accum: Record<string, string[]>, doc) => {
-                    if (!accum[doc.modelName]) {
-                        accum[doc.modelName] = [];
+                    const pluralModelName = this.cache.getModelByName(doc.modelName)!.context!.pluralId;
+                    if (!accum[pluralModelName]) {
+                        accum[pluralModelName] = [];
                     }
-                    accum[doc.modelName]!.push(doc.id);
+                    accum[pluralModelName]!.push(doc.id);
                     return accum;
                 },
                 {}
