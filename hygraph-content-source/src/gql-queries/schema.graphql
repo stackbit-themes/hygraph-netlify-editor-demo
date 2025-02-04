@@ -6,6 +6,7 @@ query schemaQuery($projectId: ID!, $environmentName: String!) {
             __typename
             id
             name
+            maxPaginationSize
             environment(name: $environmentName) {
                 __typename
                 id
@@ -13,6 +14,15 @@ query schemaQuery($projectId: ID!, $environmentName: String!) {
                 name
                 contentModel {
                     __typename
+                    locales {
+                        id
+                        apiId
+                        isDefault
+                        displayName
+                    }
+                    assetModel {
+                        id
+                    }
                     models {
                         ...ModelFragment
                     }
@@ -23,19 +33,9 @@ query schemaQuery($projectId: ID!, $environmentName: String!) {
                         ...EnumerationFragment
                     }
                 }
-                webhooks {
-                    ...WebhookFragment
-                }
             }
         }
     }
-}
-
-fragment WebhookFragment on Webhook {
-    __typename
-    id
-    name
-    url
 }
 
 fragment ModelFragment on IModel {
@@ -90,6 +90,9 @@ fragment FieldFragment on IField {
     isSystem
     visibility
     position
+    formConfig {
+        renderer
+    }
     ... on IRequireableField {
         isRequired
     }
@@ -100,7 +103,7 @@ fragment FieldFragment on IField {
         isLocalized
     }
     ... on SimpleField {
-        fieldType: type
+        type_simple: type
         initialValue
         embedsEnabled
         embeddableModels {
@@ -111,10 +114,14 @@ fragment FieldFragment on IField {
     }
     ...ValidationsFragment
     ... on EnumerableField {
-        enumType: type
-        defaultEnumerationValue: initialValue {
+        type_enum: type
+        initialValue_enum: initialValue {
             __typename
             ...EnumerationValuesFragment
+            }
+            initialValueList {
+                __typename
+                ...EnumerationValuesFragment
         }
         enumeration {
             __typename
@@ -123,7 +130,7 @@ fragment FieldFragment on IField {
         }
     }
     ... on RelationalField {
-        relationType: type
+        type_relation: type
         relatedModel {
             __typename
             id
@@ -131,7 +138,7 @@ fragment FieldFragment on IField {
         }
     }
     ... on UniDirectionalRelationalField {
-        relationType: type
+        type_relation: type
         relatedModel {
             __typename
             id
@@ -139,7 +146,7 @@ fragment FieldFragment on IField {
         }
     }
     ... on UnionField {
-        unionType: type
+        type_union: type
         isMemberType
         union {
             __typename
@@ -168,11 +175,11 @@ fragment FieldFragment on IField {
         }
     }
     ... on RemoteField {
-        remoteType: type
+        type_remote: type
         ...FieldRemoteFragment
     }
     ... on ComponentField {
-        componentType: type
+        type_component: type
         component {
             __typename
             id
@@ -180,7 +187,7 @@ fragment FieldFragment on IField {
         }
     }
     ... on ComponentUnionField {
-        componentUnionType: type
+        type_componentUnion: type
         components {
             __typename
             id
@@ -234,7 +241,7 @@ fragment ValidationsFragment on IField {
                 }
             }
             ... on FloatFieldValidations {
-                floatRange: range {
+                range_float: range {
                     __typename
                     min
                     max

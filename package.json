@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@graphql-codegen/cli": "^5.0.2",
-    "@stackbit/utils": "^0.7.5",
+    "@stackbit/utils": "^0.7.14",
     "graphql": "^16.8.1",
     "graphql-request": "^6.1.0",
     "lodash": "^4.17.21",
@@ -20,7 +20,7 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@stackbit/types": "^2.0.3",
+    "@stackbit/types": "^2.1.12",
     "@types/node": "^20.11.28",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",

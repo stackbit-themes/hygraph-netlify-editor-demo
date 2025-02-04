@@ -1,8 +1,9 @@
 import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
-import type { HygraphEntry } from './hygraph-api-client';
 import { omitByUndefined } from '@stackbit/utils';
-import { FieldInfo, ModelWithContext } from './hygraph-schema-converter';
+import type { HygraphEntry } from './hygraph-api-client';
+import type { FieldInfo, ModelWithContext } from './hygraph-schema-converter';
+import { colorToHex } from './utils';
 
 export type DocumentWithContext = StackbitTypes.Document<DocumentContext>;
 export type DocumentContext = {
@@ -31,25 +32,25 @@ export const SystemDocumentFields = [
     'documentInStages',
     'scheduledIn',
     'history'
-];
+] as const;
 
 export function convertDocuments({
     hygraphEntries,
-    manageUrl,
     getModelByName,
+    baseManageUrl,
     logger
 }: {
     hygraphEntries: HygraphEntry[];
-    manageUrl: (documentId: string, modelName: string) => string;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
+    baseManageUrl: string;
     logger: StackbitTypes.Logger;
 }): DocumentWithContext[] {
     return hygraphEntries
         .map((hygraphEntry: HygraphEntry) =>
             convertDocument({
                 hygraphEntry,
-                manageUrl,
                 getModelByName,
+                baseManageUrl,
                 logger
             })
         )
@@ -58,13 +59,13 @@ export function convertDocuments({
 
 export function convertDocument({
     hygraphEntry,
-    manageUrl,
     getModelByName,
+    baseManageUrl,
     logger
 }: {
     hygraphEntry: HygraphEntry;
-    manageUrl: (documentId: string, modelName: string) => string;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
+    baseManageUrl: string;
     logger: StackbitTypes.Logger;
 }): DocumentWithContext | undefined {
     const model = getModelByName(hygraphEntry.__typename);
@@ -73,19 +74,20 @@ export function convertDocument({
         return undefined;
     }
 
+    // Omit all the system fields and get only the user defined fields
     const hygraphFields = _.omit(hygraphEntry, SystemDocumentFields);
     const nestedModelsInfo = {};
-
+    const modelId = model?.context?.internalId;
     return omitByUndefined({
         type: 'document' as const,
         id: hygraphEntry.id,
         modelName: hygraphEntry.__typename,
-        manageUrl: manageUrl(hygraphEntry.id, hygraphEntry.__typename),
+        manageUrl: `${baseManageUrl}/content/${modelId}/entry/${hygraphEntry.id}`,
         status: getDocumentStatus(hygraphEntry),
         createdAt: hygraphEntry.createdAt,
-        createdBy: undefined, // TODO: fetch users and assign by IDs
+        createdBy: hygraphEntry.createdBy?.name,
         updatedAt: hygraphEntry.updatedAt,
-        updatedBy: undefined, // TODO: fetch users and assign by IDs
+        updatedBy: hygraphEntry.updatedBy?.name ? [hygraphEntry.updatedBy.name] : undefined,
         context: {
             nestedModelsInfo
         },
@@ -108,7 +110,13 @@ function convertFields({
     fieldPath,
     logger
 }: {
-    hygraphFields: Record<string, any>;
+    hygraphFields: {
+        localizations?: {
+            locale: string;
+            [key: string]: any;
+        }[];
+        [key: string]: any;
+    };
     model: ModelWithContext;
     nestedModelsInfo: NestedModelsInfo;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
@@ -116,7 +124,18 @@ function convertFields({
     logger: StackbitTypes.Logger;
 }): Record<string, StackbitTypes.DocumentField> {
     const fields: Record<string, StackbitTypes.DocumentField> = {};
-    for (const [fieldName, fieldValue] of Object.entries(hygraphFields)) {
+    const { localizations = [], ...nonLocalizedFields } = hygraphFields;
+    const localizedFields = localizations.reduce((accum: Record<string, Record<string, any>>, localizedFields) => {
+        const { locale, ...fields } = localizedFields;
+        for (const [fieldName, fieldValue] of Object.entries(fields)) {
+            if (!(fieldName in accum)) {
+                accum[fieldName] = {};
+            }
+            accum[fieldName]![locale] = fieldValue;
+        }
+        return accum;
+    }, {});
+    for (const [fieldName, fieldValue] of Object.entries({ ...nonLocalizedFields, ...localizedFields })) {
         if (fieldValue === null) {
             continue;
         }
@@ -127,6 +146,7 @@ function convertFields({
         const documentField = convertField({
             fieldValue,
             modelField,
+            isLocalizedField: !!modelField.localized,
             nestedModelsInfo,
             getModelByName,
             fieldInfo: model.context?.fieldInfoMap[fieldName],
@@ -152,17 +172,20 @@ function convertField(
     options: {
         fieldValue: any;
         modelField: StackbitTypes.Field;
+        isLocalizedField: boolean;
     } & convertFieldOptions
 ): StackbitTypes.DocumentField | undefined;
 function convertField(
     options: {
         fieldValue: any[];
         modelField: StackbitTypes.FieldListItems;
+        isLocalizedField: false;
     } & convertFieldOptions
 ): StackbitTypes.DocumentListFieldItems | undefined;
 function convertField({
     fieldValue,
     modelField,
+    isLocalizedField,
     nestedModelsInfo,
     getModelByName,
     fieldInfo,
@@ -171,6 +194,7 @@ function convertField({
 }: {
     fieldValue: any;
     modelField: StackbitTypes.FieldSpecificProps;
+    isLocalizedField: boolean;
 } & convertFieldOptions): StackbitTypes.DocumentField | undefined {
     switch (modelField.type) {
         case 'string':
@@ -185,26 +209,28 @@ function convertField({
         case 'datetime': {
             return {
                 type: modelField.type,
-                value: fieldValue
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({ value }))
             };
         }
         case 'color': {
             return {
                 type: modelField.type,
-                value: fieldValue.hex
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({ value: colorToHex(value) }))
             };
         }
         case 'json': {
             return {
                 type: modelField.type,
-                value: fieldValue
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({ value }))
             };
         }
         case 'richText': {
             return {
                 type: modelField.type,
-                value: fieldValue.markdown,
-                hint: fieldValue.text.substring(0, 50)
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({
+                    value: value.markdown,
+                    hint: value.text.substring(0, 50)
+                }))
             };
         }
         case 'file': {
@@ -215,10 +241,15 @@ function convertField({
         case 'enum': {
             return {
                 type: modelField.type,
-                value: fieldValue
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({ value }))
             };
         }
         case 'image': {
+            nestedModelsInfo[fieldPath.join('.')] = {
+                id: fieldValue.id,
+                modelName: fieldValue.__typename,
+                isMultiModel: false
+            };
             return {
                 type: 'reference',
                 refType: 'asset',
@@ -273,23 +304,27 @@ function convertField({
         case 'list': {
             return {
                 type: modelField.type,
-                items: !Array.isArray(fieldValue)
-                    ? []
-                    : fieldValue
-                        .map((itemValue, index) =>
-                            convertField({
-                                fieldValue: itemValue,
-                                modelField: modelField.items,
-                                nestedModelsInfo,
-                                getModelByName,
-                                fieldInfo,
-                                fieldPath: fieldPath.concat(index),
-                                logger
-                            })
-                        )
-                        .filter(
-                            (documentField): documentField is StackbitTypes.DocumentListFieldItems => !!documentField
-                        )
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({
+                    items: !Array.isArray(value)
+                        ? []
+                        : value
+                              .map((itemValue, index) =>
+                                  convertField({
+                                      fieldValue: itemValue,
+                                      modelField: modelField.items,
+                                      isLocalizedField: false,
+                                      nestedModelsInfo,
+                                      getModelByName,
+                                      fieldInfo,
+                                      fieldPath: fieldPath.concat(index),
+                                      logger
+                                  })
+                              )
+                              .filter(
+                                  (documentField): documentField is StackbitTypes.DocumentListFieldItems =>
+                                      !!documentField
+                              )
+                }))
             };
         }
         case 'style': {
@@ -305,14 +340,41 @@ function convertField({
 
 function getDocumentStatus(hygraphEntry: HygraphEntry): StackbitTypes.DocumentStatus {
     const publishedDoc = hygraphEntry.documentInStages?.find((doc) => doc.stage === 'PUBLISHED');
-
     if (!publishedDoc) {
         return 'added';
     }
-
     if (publishedDoc.updatedAt === hygraphEntry.updatedAt) {
         return 'published';
     }
-
     return 'modified';
+}
+
+function localizedIfNeeded<Type>(
+    fieldValue: any,
+    isLocalizedField: boolean,
+    valueFn: (value: any) => Type
+):
+    | Type
+    | {
+          localized: true;
+          locales: Record<
+              string,
+              {
+                  locale: string;
+              } & Type
+          >;
+      } {
+    if (isLocalizedField) {
+        return {
+            localized: true,
+            locales: _.mapValues(fieldValue, (value, locale) => {
+                return {
+                    locale,
+                    ...valueFn(value)
+                };
+            })
+        };
+    } else {
+        return valueFn(fieldValue);
+    }
 }

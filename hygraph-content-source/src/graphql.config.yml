@@ -1,10 +1,14 @@
 # This is a Webstorm GraphQL configuration file.
-# It is used to generated introspected GraphQL schemas.
+# It is used to generated introspected GraphQL schemas to allow auto-completion in code.
 # Run the "hygraph_management" or "hygraph_content" endpoints via Webstorm
-# to generate management.graphql or content.graphql files.
+# to generate gql-schemas/management.graphql and gql-schemas/content.graphql files.
 projects:
   management:
     schema: gql-schemas/management.graphql
+    include:
+      - "./gql-queries/schema.ts"
+      - "./gql-queries/webhooks.ts"
+      - "./gql-queries/schema.graphql"
     extensions:
       endpoints:
         hygraph_management:
@@ -13,6 +17,8 @@ projects:
             Authorization: Bearer ${HYGRAPH_MANAGEMENT_TOKEN}
   content:
     schema: gql-schemas/content.graphql
+    include:
+      - "./gql-queries/assets.ts"
     extensions:
       endpoints:
         hygraph_content:

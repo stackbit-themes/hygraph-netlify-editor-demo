@@ -7,35 +7,40 @@ export type AssetContext = {};
 
 export function convertAssets({
     hygraphAssets,
-    manageUrl
+    assetModelId,
+    baseManageUrl
 }: {
     hygraphAssets: HygraphAsset[];
-    manageUrl: (assetId: string) => string;
+    assetModelId: string | null;
+    baseManageUrl: string;
 }): AssetWithContext[] {
     return hygraphAssets.map((hygraphAsset: HygraphAsset) =>
         convertAsset({
             hygraphAsset,
-            manageUrl
+            assetModelId,
+            baseManageUrl
         })
     );
 }
 
 export function convertAsset({
     hygraphAsset,
-    manageUrl
+    assetModelId,
+    baseManageUrl
 }: {
     hygraphAsset: HygraphAsset;
-    manageUrl: (assetId: string) => string;
+    assetModelId: string | null;
+    baseManageUrl: string;
 }): AssetWithContext {
     return omitByUndefined({
         type: 'asset' as const,
         id: hygraphAsset.id,
-        manageUrl: manageUrl(hygraphAsset.id),
+        manageUrl: `${baseManageUrl}/assets/${assetModelId}/entry/${hygraphAsset.id}`,
         status: getAssetStatus(hygraphAsset),
         createdAt: hygraphAsset.createdAt,
-        createdBy: undefined, // TODO: fetch users and assign by IDs
+        createdBy: hygraphAsset.createdBy?.name,
         updatedAt: hygraphAsset.updatedAt,
-        updatedBy: undefined, // TODO: fetch users and assign by IDs
+        updatedBy: hygraphAsset.updatedBy?.name ? [hygraphAsset.updatedBy.name] : undefined,
         context: {},
         fields: {
             title: {
@@ -46,11 +51,11 @@ export function convertAsset({
                 type: 'assetFile' as const,
                 url: hygraphAsset.url,
                 fileName: hygraphAsset.fileName,
-                contentType: hygraphAsset.mimeType,
-                size: hygraphAsset.size,
+                contentType: hygraphAsset.mimeType ?? undefined,
+                size: hygraphAsset.size ?? undefined,
                 dimensions: {
-                    width: hygraphAsset.width,
-                    height: hygraphAsset.height
+                    width: hygraphAsset.width ?? undefined,
+                    height: hygraphAsset.height ?? undefined
                 }
             }
         }

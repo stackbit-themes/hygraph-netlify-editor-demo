@@ -1,7 +1,7 @@
 import { gql } from 'graphql-request';
 
-export default gql`
-    query schemaQuery($projectId: ID!, $environmentName: String!) {
+export const getSchema = gql`
+    query getSchema($projectId: ID!, $environmentName: String!) {
         viewer {
             __typename
             id
@@ -9,16 +9,20 @@ export default gql`
                 __typename
                 id
                 name
+                maxPaginationSize
                 environment(name: $environmentName) {
                     __typename
                     id
                     displayName
                     name
-                    assetConfig {
-                        apiKey
-                    }
                     contentModel {
                         __typename
+                        locales {
+                            id
+                            apiId
+                            isDefault
+                            displayName
+                        }
                         assetModel {
                             id
                         }
@@ -32,19 +36,9 @@ export default gql`
                             ...EnumerationFragment
                         }
                     }
-                    webhooks {
-                        ...WebhookFragment
-                    }
                 }
             }
         }
-    }
-
-    fragment WebhookFragment on Webhook {
-        __typename
-        id
-        name
-        url
     }
 
     fragment ModelFragment on IModel {
@@ -99,6 +93,9 @@ export default gql`
         isSystem
         visibility
         position
+        formConfig {
+            renderer
+        }
         ... on IRequireableField {
             isRequired
         }
@@ -109,7 +106,7 @@ export default gql`
             isLocalized
         }
         ... on SimpleField {
-            fieldType: type
+            type_simple: type
             initialValue
             embedsEnabled
             embeddableModels {
@@ -120,8 +117,12 @@ export default gql`
         }
         ...ValidationsFragment
         ... on EnumerableField {
-            enumType: type
-            defaultEnumerationValue: initialValue {
+            type_enum: type
+            initialValue_enum: initialValue {
+                __typename
+                ...EnumerationValuesFragment
+            }
+            initialValueList {
                 __typename
                 ...EnumerationValuesFragment
             }
@@ -132,7 +133,7 @@ export default gql`
             }
         }
         ... on RelationalField {
-            relationType: type
+            type_relation: type
             relatedModel {
                 __typename
                 id
@@ -140,7 +141,7 @@ export default gql`
             }
         }
         ... on UniDirectionalRelationalField {
-            relationType: type
+            type_relation: type
             relatedModel {
                 __typename
                 id
@@ -148,7 +149,7 @@ export default gql`
             }
         }
         ... on UnionField {
-            unionType: type
+            type_union: type
             isMemberType
             union {
                 __typename
@@ -177,11 +178,11 @@ export default gql`
             }
         }
         ... on RemoteField {
-            remoteType: type
+            type_remote: type
             ...FieldRemoteFragment
         }
         ... on ComponentField {
-            componentType: type
+            type_component: type
             component {
                 __typename
                 id
@@ -189,7 +190,7 @@ export default gql`
             }
         }
         ... on ComponentUnionField {
-            componentUnionType: type
+            type_componentUnion: type
             components {
                 __typename
                 id
@@ -243,7 +244,7 @@ export default gql`
                     }
                 }
                 ... on FloatFieldValidations {
-                    floatRange: range {
+                    range_float: range {
                         __typename
                         min
                         max

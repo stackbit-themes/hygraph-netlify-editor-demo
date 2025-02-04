@@ -14,6 +14,9 @@ directive @deactivateVia(env: String!) on OBJECT | FIELD_DEFINITION
 
 directive @deprecatedInput(reason: String!) on INPUT_FIELD_DEFINITION
 
+"Indicates exactly one field must be supplied and this field must not be `null`."
+directive @oneOf on INPUT_OBJECT
+
 interface IApp {
     apiId: String!
     author: ID!
@@ -105,6 +108,14 @@ interface IField {
     tableConfig: FieldConfig!
     updatedAt: DateTime!
     visibility: VisibilityTypes!
+}
+
+interface IFieldCondition {
+    "Field used to set the condition"
+    baseField: IField!
+    createdAt: DateTime!
+    id: ID!
+    updatedAt: DateTime!
 }
 
 interface IFieldParent {
@@ -259,6 +270,10 @@ interface IViewer {
     templates: [ITemplate!]!
 }
 
+interface IVisibilityConditionalField {
+    visibilityCondition: IFieldCondition
+}
+
 union AuditLogTriggeredBy = Member | PermanentAuthToken
 
 union CloningFrom = Project | StarterTemplate | Template
@@ -362,6 +377,25 @@ type AppWithSecrets implements IApp {
     webhookUrl: String
 }
 
+type AssetMigration {
+    createdAt: DateTime!
+    id: ID!
+    isRevert: Boolean!
+    isViewed: Boolean!
+    lastCompletedStep: Int!
+    sourceEnvironment: String
+    status: String!
+    updatedAt: DateTime!
+}
+
+type AssetMigrationProgressPayload {
+    environmentId: ID!
+    isRevert: Boolean!
+    isViewed: Boolean!
+    lastCompletedStep: Int!
+    status: String!
+}
+
 type AssetModel implements IFieldParent & IModel {
     apiId: String!
     apiIdPlural: String!
@@ -426,6 +460,16 @@ type BillingPeriod {
     to: DateTime!
 }
 
+type BooleanFieldCondition implements IFieldCondition {
+    "Field used to set the condition"
+    baseField: SimpleField!
+    createdAt: DateTime!
+    id: ID!
+    operator: FieldConditionOperator!
+    updatedAt: DateTime!
+    value: Boolean!
+}
+
 type CloningProject implements IPendingProject {
     cloningFrom: CloningFrom!
     description: String
@@ -476,7 +520,7 @@ type Component implements IFieldParent & IRecentSchemaChange {
     updatedAt: DateTime!
 }
 
-type ComponentField implements IField & IRequireableField {
+type ComponentField implements IField & IRequireableField & IVisibilityConditionalField {
     apiId: String!
     component: Component!
     createdAt: DateTime!
@@ -500,9 +544,10 @@ type ComponentField implements IField & IRequireableField {
     type: ComponentFieldType!
     updatedAt: DateTime!
     visibility: VisibilityTypes!
+    visibilityCondition: IFieldCondition
 }
 
-type ComponentUnionField implements IField & IRequireableField {
+type ComponentUnionField implements IField & IRequireableField & IVisibilityConditionalField {
     apiId: String!
     components: [Component!]!
     createdAt: DateTime!
@@ -525,6 +570,7 @@ type ComponentUnionField implements IField & IRequireableField {
     type: ComponentUnionFieldType!
     updatedAt: DateTime!
     visibility: VisibilityTypes!
+    visibilityCondition: IFieldCondition
 }
 
 type ContentModel {
@@ -773,7 +819,7 @@ type DiffEnvironmentPayload {
     changes: [JSON!]!
 }
 
-type EnumerableField implements IField & ILocalizableField & IRequireableField & ITitleableField & IUniqueableField {
+type EnumerableField implements IField & ILocalizableField & IRequireableField & ITitleableField & IUniqueableField & IVisibilityConditionalField {
     apiId: String!
     createdAt: DateTime!
     createdBy: CreatedBy
@@ -784,6 +830,8 @@ type EnumerableField implements IField & ILocalizableField & IRequireableField &
     formConfig: FieldConfig!
     id: ID!
     initialValue: EnumerationValue
+    "This is available if isList is true"
+    initialValueList: [EnumerationValue!]
     isHidden: Boolean! @deprecated(reason: "Use visibility instead")
     isList: Boolean!
     isLocalized: Boolean!
@@ -800,6 +848,17 @@ type EnumerableField implements IField & ILocalizableField & IRequireableField &
     type: EnumerableFieldType!
     updatedAt: DateTime!
     visibility: VisibilityTypes!
+    visibilityCondition: IFieldCondition
+}
+
+type EnumerableFieldCondition implements IFieldCondition {
+    "Field used to set the condition"
+    baseField: EnumerableField!
+    createdAt: DateTime!
+    id: ID!
+    operator: FieldConditionOperator!
+    updatedAt: DateTime!
+    value: [EnumerationValue!]!
 }
 
 type Enumeration implements IRecentSchemaChange {
@@ -808,6 +867,7 @@ type Enumeration implements IRecentSchemaChange {
     createdBy: CreatedBy
     description: String
     displayName: String!
+    enumerableFields: [EnumerableField!]!
     environment: Environment!
     id: ID!
     isSystem: Boolean!
@@ -825,7 +885,10 @@ type Environment {
     appInstallation(appApiId: String!): AppInstallation!
     appInstallations(status: AppInstallationStatus): [AppInstallation!]!
     assetConfig: IAssetConfig!
+    assetMigration: AssetMigration
+    assetSystemEnabled: Boolean
     authToken: String!
+    color: ColorPalette
     commentingConfig: CommentingConfig
     contentModel: ContentModel!
     contentView(id: ID!): ContentView!
@@ -951,7 +1014,7 @@ type FieldAppElement implements IAppElement {
     createdAt: DateTime!
     description: String
     features: [FieldAppElementFeature!]!
-    fieldType: SimpleFieldType!
+    fieldType: AppElementFieldType!
     id: ID!
     name: String!
     src: String!
@@ -1250,6 +1313,10 @@ type MemberHasPermissionsPayload {
     notAllowedActions: [PermissionAction!]!
 }
 
+type MemberWithRoles {
+    gcms: String
+}
+
 type MembersAggregate {
     count: Int!
 }
@@ -1420,6 +1487,7 @@ type Mutation {
     duplicateModel(data: DuplicateModelInput!): AsyncOperationPayload!
     leaveProject(data: LeaveProjectInput!): LeaveProjectPayload!
     leaveTrial(data: LeaveTrialInput!): LeaveTrialPayload!
+    markAssetMigrationAsViewed(data: UpgradeEnvironmentAssetInput!): UpgradeEnvironmentAssetPayload!
     moveContentView(data: MoveContentViewInput!): MoveContentViewPayload!
     moveField(data: MoveFieldInput!): MoveFieldPayload!
     moveSidebarElement(data: MoveSidebarElementInput!): MoveSidebarElementPayload!
@@ -1430,6 +1498,7 @@ type Mutation {
     resetSidebarElements(data: ResetSidebarElementsInput!): ResetSidebarElementsPayload!
     restoreEnvironmentBackup(data: RestoreEnvironmentBackupInput!): RestoreEnvironmentBackupPayload!
     retriggerWebhook(data: RetriggerWebhookInput!): RetriggerWebhookPayload!
+    revertPartialUpgradedEnvironmentAssets(data: UpgradeEnvironmentAssetInput!): UpgradeEnvironmentAssetPayload!
     revokeInvite(data: RevokeInviteInput!): RevokeInvitePayload!
     sendFeedback(data: SendFeedbackInput!): Feedback!
     sendInvite(data: SendInviteInput!): SendInvitePayload!
@@ -1594,16 +1663,26 @@ type PermanentAuthTokenDefaults {
 
 type Plan {
     billingPeriodMonths: Int!
+    canBeSwitchedTo(projectId: ID!): PlanSwitchCheckResponse!
     createdAt: DateTime!
+    description: String
     displayName: String!
     id: ID!
     isEnterprise: Boolean!
     isFree: Boolean!
-    isSwitchable(projectId: ID!): Boolean
+    isLegacy: Boolean
+    isSwitchable(projectId: ID!): Boolean @deprecated(reason: "This has been replaced by canBeSwitchedTo(projectId: ID!)")
+    isTrial: Boolean!
     limits: [Limit!]!
     name: String!
     price: Float!
+    switchType(projectId: ID!): PlanSwitchType
     updatedAt: DateTime!
+}
+
+type PlanSwitchCheckResponse {
+    reasons: [String]!
+    switchable: Boolean!
 }
 
 type Profile {
@@ -1625,6 +1704,7 @@ type Progress {
 }
 
 type Project {
+    auditLog(id: String!): AuditLog!
     auditLogs(limit: Int, orderBy: AuditLogOrderByInput = timestamp_ASC, skip: Int, where: AuditLogWhereInput): AuditLogsPayload!
     availableManagementPermissions: [ManagementPermission!]!
     cloningProjects: [CloningProject!]!
@@ -1780,6 +1860,8 @@ type ReadVersionContentPermission implements IContentPermission {
 }
 
 type Region {
+    awsRegion: String
+    enabled: Boolean!
     id: String!
     isBeta: Boolean!
     isReadOnly: Boolean!
@@ -1787,7 +1869,7 @@ type Region {
     pingUrl: String
 }
 
-type RelationalField implements IField & IRequireableField {
+type RelationalField implements IField & IRequireableField & IVisibilityConditionalField {
     apiId: String!
     createdAt: DateTime!
     createdBy: CreatedBy
@@ -1811,6 +1893,7 @@ type RelationalField implements IField & IRequireableField {
     type: RelationalFieldType!
     updatedAt: DateTime!
     visibility: VisibilityTypes!
+    visibilityCondition: IFieldCondition
 }
 
 type RemoteField implements IField {
@@ -1979,7 +2062,7 @@ type SidebarExtension implements IExtension {
     updatedBy: Member
 }
 
-type SimpleField implements IField & ILocalizableField & IRequireableField & ITitleableField & IUniqueableField {
+type SimpleField implements IField & ILocalizableField & IRequireableField & ITitleableField & IUniqueableField & IVisibilityConditionalField {
     apiId: String!
     createdAt: DateTime!
     createdBy: CreatedBy
@@ -2008,6 +2091,7 @@ type SimpleField implements IField & ILocalizableField & IRequireableField & ITi
     updatedAt: DateTime!
     validations: SimpleFieldValidations
     visibility: VisibilityTypes!
+    visibilityCondition: IFieldCondition
 }
 
 type Stage {
@@ -2057,6 +2141,7 @@ type StringFieldValidations {
 }
 
 type Subscription {
+    assetMigrationProgress(projectId: ID!): AssetMigrationProgressPayload!
     environmentCreated(projectId: ID!): EnvironmentCreatedPayload!
     environmentPromoted(projectId: ID!): EnvironmentPromotedPayload!
     netlifyBuildNotification(integrationId: ID!): NetlifyIntegrationCallbackPayload!
@@ -2123,7 +2208,7 @@ type TriggerNetlifyIntegrationBuildPayload {
     integration: NetlifyIntegration!
 }
 
-type UniDirectionalRelationalField implements IField & IRequireableField {
+type UniDirectionalRelationalField implements IField & IRequireableField & IVisibilityConditionalField {
     apiId: String!
     createdAt: DateTime!
     createdBy: CreatedBy
@@ -2146,6 +2231,7 @@ type UniDirectionalRelationalField implements IField & IRequireableField {
     type: RelationalFieldType!
     updatedAt: DateTime!
     visibility: VisibilityTypes!
+    visibilityCondition: IFieldCondition
 }
 
 type Union {
@@ -2157,7 +2243,7 @@ type Union {
     memberTypes: [UnionField!]!
 }
 
-type UnionField implements IField & IUnionField {
+type UnionField implements IField & IUnionField & IVisibilityConditionalField {
     apiId: String!
     createdAt: DateTime!
     createdBy: CreatedBy
@@ -2181,6 +2267,7 @@ type UnionField implements IField & IUnionField {
     union: Union!
     updatedAt: DateTime!
     visibility: VisibilityTypes!
+    visibilityCondition: IFieldCondition
 }
 
 type UnpublishContentPermission implements IContentPermission {
@@ -2385,7 +2472,7 @@ type UserViewer implements IViewer {
     pendingInvites: [Invite!]!
     pendingProject(id: ID!): IPendingProject
     pendingProjects: [IPendingProject!]!
-    plans: [Plan!]!
+    plans(projectId: ID): [Plan!]!
     project(id: ID): Project
     projects: [Project!]!
     regions: [Region!]!
@@ -2494,6 +2581,10 @@ type _AddStageToContentViewsPayload {
     gcms: String
 }
 
+type _AssignEnvironmentColorsPayload {
+    gcms: String
+}
+
 type _BookOverLimitAddonUsage {
     gcms: String
 }
@@ -2503,6 +2594,10 @@ type _BookOverLimitPayload {
 }
 
 type _DeleteProjectPayload {
+    gcms: String
+}
+
+type _EnableEnvironmentBackupPayload {
     gcms: String
 }
 
@@ -2538,6 +2633,10 @@ type _ResetContentConfigPayload {
     gcms: String
 }
 
+type _SanitizeContentViewStagesPayload {
+    gcms: String
+}
+
 type _UpdatePlanTrialPayload {
     gcms: String
 }
@@ -2546,6 +2645,21 @@ enum AppContentPermission {
     NONE
     READ
     READ_WRITE
+}
+
+enum AppElementFieldType {
+    BOOLEAN
+    COLOR
+    DATE
+    DATETIME
+    FLOAT
+    ID
+    INT
+    JSON
+    LOCATION
+    RELATION
+    RICHTEXT
+    STRING
 }
 
 enum AppElementType {
@@ -2642,12 +2756,17 @@ enum CacheControlScope {
 }
 
 enum ColorPalette {
+    BLUE
     BROWN
     GREEN
+    INDIGO
+    NEUTRAL
+    OLIVE
     ORANGE
     PINK
     PURPLE
     RED
+    ROSE
     TEAL
     YELLOW
 }
@@ -2727,6 +2846,14 @@ enum FieldAppElementFeature {
     TableRenderer
 }
 
+enum FieldConditionOperator {
+    CONTAINS_ALL
+    CONTAINS_ANY
+    CONTAINS_NONE
+    IS
+    IS_NOT
+}
+
 enum GraphQLRemoteSourceIntrospectionMethod {
     GET
     POST
@@ -2748,6 +2875,7 @@ enum LifecycleStepType {
 enum LimitType {
     API_OPERATIONS
     ASSET_TRAFFIC
+    ASSET_UPLOAD_FILE_SIZE_LIMIT
     AUDIT_LOGS_RETENTION_PERIOD
     CONTENT_MODELS
     CONTENT_PERMISSIONS
@@ -2760,6 +2888,7 @@ enum LimitType {
     PERMANENT_AUTH_TOKENS
     RATE_LIMIT_PER_SECOND
     RECORDS
+    REGIONS
     REMOTE_FIELDS
     REMOTE_FIELDS_HTTP_WORKERS
     REMOTE_FIELDS_MAX_EXECUTION_TIME
@@ -2933,6 +3062,12 @@ enum PermissionAction {
     WEBHOOK_UPDATE
 }
 
+enum PlanSwitchType {
+    CHANGE
+    DOWNGRADE
+    UPGRADE
+}
+
 enum REMOTE_GRAPHQL_TYPE {
     ENUM
     INPUT_OBJECT
@@ -3094,7 +3229,27 @@ input AuditLogWhereInput {
     triggeredBy: String
 }
 
+input BatchFieldConditionInput {
+    "API ID of the field used to set the condition, dependent field"
+    baseField: String!
+    booleanValue: Boolean
+    enumerationValues: [String!]
+    operator: FieldConditionOperator!
+}
+
+"Creating an app installation."
+input BatchMigrationAppInstallationInput {
+    appApiId: String!
+    config: JSON!
+}
+
+"Deleting an app installation."
+input BatchMigrationAppUninstallationInput {
+    appApiId: String!
+}
+
 input BatchMigrationChangeInput {
+    createAppInstallation: BatchMigrationAppInstallationInput
     createComponent: BatchMigrationCreateComponentInput
     createComponentField: BatchMigrationCreateComponentFieldInput
     createComponentUnionField: BatchMigrationCreateComponentUnionFieldInput
@@ -3113,6 +3268,7 @@ input BatchMigrationChangeInput {
     createUnionField: BatchMigrationCreateUnionFieldInput
     "creates a webhook"
     createWebhook: BatchMigrationCreateWebhookInput
+    deleteAppInstallation: BatchMigrationAppUninstallationInput
     deleteComponent: BatchMigrationDeleteComponentInput
     deleteCustomSidebarElement: BatchMigrationDeleteCustomSidebarElementInput
     deleteEnumeration: BatchMigrationDeleteEnumerationInput
@@ -3159,6 +3315,7 @@ input BatchMigrationCreateComponentFieldInput {
     tableExtension: String
     tableRenderer: String
     visibility: VisibilityTypes
+    visibilityCondition: BatchFieldConditionInput
 }
 
 "Creating a component."
@@ -3183,6 +3340,7 @@ input BatchMigrationCreateComponentUnionFieldInput {
     tableExtension: String
     tableRenderer: String
     visibility: VisibilityTypes
+    visibilityCondition: BatchFieldConditionInput
 }
 
 "Creating a custom input type definition"
@@ -3225,6 +3383,7 @@ input BatchMigrationCreateEnumerableFieldInput {
     enumerationApiId: String!
     formExtension: String
     formRenderer: String
+    initialValue: String
     isHidden: Boolean
     isList: Boolean
     isLocalized: Boolean
@@ -3239,6 +3398,7 @@ input BatchMigrationCreateEnumerableFieldInput {
     tableExtension: String
     tableRenderer: String
     visibility: VisibilityTypes
+    visibilityCondition: BatchFieldConditionInput
 }
 
 "Creating enumeration"
@@ -3300,6 +3460,8 @@ input BatchMigrationCreateModelInput {
     displayName: String!
     "Only AppTokens should provide this flag"
     isSystem: Boolean
+    "Sidebar elements to create"
+    sidebarElements: [BatchMigrationModelCustomSidebarElementInput!]
 }
 
 input BatchMigrationCreateRESTRemoteSourceInput {
@@ -3322,6 +3484,7 @@ input BatchMigrationCreateRelationalFieldInput {
     apiId: String!
     description: String
     displayName: String!
+    formConfig: JSON
     formExtension: String
     formRenderer: String
     isHidden: Boolean
@@ -3335,10 +3498,12 @@ input BatchMigrationCreateRelationalFieldInput {
     modelApiId: String
     parentApiId: String
     reverseField: BatchMigrationCreateReverseRelationalFieldInput!
+    tableConfig: JSON
     tableExtension: String
     tableRenderer: String
     type: RelationalFieldType!
     visibility: VisibilityTypes
+    visibilityCondition: BatchFieldConditionInput
 }
 
 input BatchMigrationCreateRemoteFieldInput {
@@ -3416,6 +3581,7 @@ input BatchMigrationCreateSimpleFieldInput {
     type: SimpleFieldType!
     validations: SimpleFieldValidationsInput
     visibility: VisibilityTypes
+    visibilityCondition: BatchFieldConditionInput
 }
 
 "Creating a stage."
@@ -3442,6 +3608,7 @@ input BatchMigrationCreateUnionFieldInput {
     tableExtension: String
     tableRenderer: String
     visibility: VisibilityTypes
+    visibilityCondition: BatchFieldConditionInput
 }
 
 input BatchMigrationCreateWebhookInput {
@@ -3493,7 +3660,7 @@ input BatchMigrationDeleteCustomSidebarElementInput {
     modelApiId: String!
 }
 
-"Deleting enumarable field"
+"Deleting enumerable field"
 input BatchMigrationDeleteEnumerationInput {
     apiId: String!
 }
@@ -3546,6 +3713,24 @@ input BatchMigrationInput {
     name: String
 }
 
+input BatchMigrationModelCustomSidebarElementInput {
+    "Api Id of the App"
+    appApiId: String!
+    "Api Id of the App element to create custom sidebar element with"
+    appElementApiId: String!
+    "Json metadata associated with the sidebar element"
+    config: JSON
+    "Description name for the sidebar element"
+    description: String
+    "Display name for the sidebar element"
+    displayName: String!
+}
+
+input BatchMigrationModelSystemSidebarElementInput {
+    config: JSON
+    type: SystemSidebarElementType!
+}
+
 input BatchMigrationRefreshGraphQLRemoteSourceSchemaInput {
     prefix: String!
 }
@@ -3588,6 +3773,7 @@ input BatchMigrationUpdateComponentFieldInput {
     newApiId: String
     parentApiId: String!
     visibility: VisibilityTypes
+    visibilityCondition: BatchFieldConditionInput
 }
 
 "Updating a component."
@@ -3607,6 +3793,7 @@ input BatchMigrationUpdateComponentUnionFieldInput {
     displayName: String
     newApiId: String
     parentApiId: String!
+    visibilityCondition: BatchFieldConditionInput
 }
 
 "Updating enumerable field"
@@ -3628,6 +3815,7 @@ input BatchMigrationUpdateEnumerableFieldInput {
     parentApiId: String
     position: Int
     visibility: VisibilityTypes
+    visibilityCondition: BatchFieldConditionInput
 }
 
 "Updating enumeration"
@@ -3682,6 +3870,7 @@ input BatchMigrationUpdateModelInput {
     displayName: String
     isSystem: Boolean
     newApiId: String
+    sidebarElementsToUpsert: BatchMigrationUpsertSidebarElementInput
 }
 
 input BatchMigrationUpdateRESTRemoteSourceInput {
@@ -3702,6 +3891,7 @@ input BatchMigrationUpdateRelationalFieldInput {
     apiId: String!
     description: String
     displayName: String
+    formConfig: JSON
     isHidden: Boolean
     isList: Boolean
     """
@@ -3714,7 +3904,9 @@ input BatchMigrationUpdateRelationalFieldInput {
     modelApiId: String
     newApiId: String
     parentApiId: String
+    tableConfig: JSON
     visibility: VisibilityTypes
+    visibilityCondition: BatchFieldConditionInput
 }
 
 input BatchMigrationUpdateRemoteFieldConfigInput {
@@ -3781,6 +3973,7 @@ input BatchMigrationUpdateSimpleFieldInput {
     tableRenderer: String
     validations: SimpleFieldValidationsInput
     visibility: VisibilityTypes
+    visibilityCondition: BatchFieldConditionInput
 }
 
 "Updating a stage"
@@ -3803,6 +3996,7 @@ input BatchMigrationUpdateUnionFieldInput {
     parentApiId: String
     reverseField: BatchMigrationUpdateReverseUnionFieldInput
     visibility: VisibilityTypes
+    visibilityCondition: BatchFieldConditionInput
 }
 
 input BatchMigrationUpdateWebhookInput {
@@ -3821,6 +4015,13 @@ input BatchMigrationUpdateWebhookInput {
     triggerType: WebhookTriggerType
     url: String
     webhookId: ID!
+}
+
+input BatchMigrationUpsertCustomSidebarElementInputToDeleteInput {
+    "Api Id of the App"
+    appApiId: String!
+    "Api Id of the App element associated with the custom sidebar element"
+    appElementApiId: String!
 }
 
 input BatchMigrationUpsertFieldInputArgInput {
@@ -3867,6 +4068,26 @@ input BatchMigrationUpsertRemoteTypeDefinitionsInput {
     remoteTypeDefinitionsToUpdate: [BatchMigrationUpsertRemoteTypeDefinitionToUpdateInput!]
 }
 
+input BatchMigrationUpsertSidebarElementInput {
+    customSidebarElementsToCreate: [BatchMigrationModelCustomSidebarElementInput!]
+    customSidebarElementsToDelete: [BatchMigrationUpsertCustomSidebarElementInputToDeleteInput!]
+    sidebarElementsToUpdate: [BatchMigrationUpsertSidebarElementInputToUpdateInput!]
+    systemSidebarElementsToCreate: [BatchMigrationModelSystemSidebarElementInput!]
+    systemSidebarElementsToDelete: [BatchMigrationUpsertSystemSidebarElementInputToDeleteInput!]
+}
+
+input BatchMigrationUpsertSidebarElementInputToUpdateInput {
+    config: JSON
+    description: String
+    displayName: String!
+    newDisplayName: String
+    position: Int
+}
+
+input BatchMigrationUpsertSystemSidebarElementInputToDeleteInput {
+    type: SystemSidebarElementType!
+}
+
 input CloneProjectInput {
     description: String
     name: String!
@@ -3877,6 +4098,8 @@ input CloneProjectInput {
 
 "clone project from a template"
 input CloneProjectTemplateInput {
+    "Allows to clone project with App Installations from source Project"
+    appInstallations: Boolean! = false
     "Set to false to not include content"
     content: Boolean! = true
     "id of template (if it's marked as template) or id of a project you are an owner of"
@@ -3937,6 +4160,7 @@ input CreateComponentFieldInput {
     position: Int
     tableConfig: FieldConfigInput
     visibility: VisibilityTypes! = READ_WRITE
+    visibilityCondition: FieldConditionInput
 }
 
 input CreateComponentInput {
@@ -3963,6 +4187,7 @@ input CreateComponentUnionFieldInput {
     position: Int
     tableConfig: FieldConfigInput
     visibility: VisibilityTypes! = READ_WRITE
+    visibilityCondition: FieldConditionInput
 }
 
 """
@@ -4052,6 +4277,7 @@ input CreateEnumerableFieldInput {
     tableConfig: FieldConfigInput
     type: EnumerableFieldType!
     visibility: VisibilityTypes
+    visibilityCondition: FieldConditionInput
 }
 
 input CreateEnumerationInput {
@@ -4064,6 +4290,8 @@ input CreateEnumerationInput {
 }
 
 input CreateEnvironmentInput {
+    "Assign color to the environment, if not passed a random color will be set"
+    color: ColorPalette
     description: String
     displayName: String!
     """
@@ -4080,6 +4308,12 @@ input CreateEnvironmentInput {
     string between 1 and 16 characters
     """
     name: String!
+    """
+
+    Allows to create environment
+    with App Installations of origin environment
+    """
+    withAppInstallations: Boolean! = false
     """
 
     Setting this to false allows the environment to be created without the assets
@@ -4313,6 +4547,7 @@ input CreateRelationalFieldInput {
     tableConfig: FieldConfigInput
     type: RelationalFieldType!
     visibility: VisibilityTypes = READ_WRITE
+    visibilityCondition: FieldConditionInput
 }
 
 input CreateRemoteFieldInput {
@@ -4413,6 +4648,7 @@ input CreateSimpleFieldInput {
     type: SimpleFieldType!
     validations: SimpleFieldValidationsInput
     visibility: VisibilityTypes
+    visibilityCondition: FieldConditionInput
 }
 
 input CreateStageInput {
@@ -4459,6 +4695,7 @@ input CreateUnionFieldInput {
     type: UnionFieldType!
     union: CreateUnionInput!
     visibility: VisibilityTypes = READ_WRITE
+    visibilityCondition: FieldConditionInput
 }
 
 input CreateUnionInput {
@@ -4678,6 +4915,14 @@ input EnvironmentPermissionsInput {
     allowMutations: Boolean!
 }
 
+input FieldConditionInput {
+    "API ID of the field used to set the condition, dependent field"
+    baseField: ID!
+    booleanValue: Boolean
+    enumerationValues: [ID!]
+    operator: FieldConditionOperator!
+}
+
 input FieldConfigInput {
     appElementId: ID
     appInstallationId: ID
@@ -4771,6 +5016,7 @@ input PromoteEnvironmentInput {
     environmentId: ID!
     renameCurrentMasterApiIdTo: String!
     renameCurrentMasterDisplayNameTo: String!
+    setCurrentMasterColorTo: ColorPalette
 }
 
 input RemoteFieldConfigInput {
@@ -4933,6 +5179,7 @@ input UpdateComponentFieldInput {
     meta: JSON
     tableConfig: FieldConfigInput
     visibility: VisibilityTypes
+    visibilityCondition: FieldConditionInput
 }
 
 input UpdateComponentInput {
@@ -4965,6 +5212,7 @@ input UpdateComponentUnionFieldInput {
     meta: JSON
     tableConfig: FieldConfigInput
     visibility: VisibilityTypes
+    visibilityCondition: FieldConditionInput
 }
 
 input UpdateContentPermissionEnabledInput {
@@ -5013,6 +5261,7 @@ input UpdateEnumerableFieldInput {
     migrationValue: String
     tableConfig: FieldConfigInput
     visibility: VisibilityTypes
+    visibilityCondition: FieldConditionInput
 }
 
 input UpdateEnumerationInput {
@@ -5035,6 +5284,8 @@ input UpdateEnumerationInput {
 }
 
 input UpdateEnvironmentInput {
+    "Update assigned color to the environment"
+    color: ColorPalette
     "Update the environment description"
     description: String
     "Update the environment display name"
@@ -5257,6 +5508,7 @@ input UpdateRelationalFieldInput {
     meta: JSON
     tableConfig: FieldConfigInput
     visibility: VisibilityTypes
+    visibilityCondition: FieldConditionInput
 }
 
 input UpdateRemoteFieldConfigInput {
@@ -5338,6 +5590,7 @@ input UpdateSimpleFieldInput {
     tableConfig: FieldConfigInput
     validations: SimpleFieldValidationsInput
     visibility: VisibilityTypes
+    visibilityCondition: FieldConditionInput
 }
 
 input UpdateStageFilestackSecurityOptionsInput {
@@ -5380,6 +5633,7 @@ input UpdateUnionFieldInput {
     tableConfig: FieldConfigInput
     union: UpdateUnionInput
     visibility: VisibilityTypes
+    visibilityCondition: FieldConditionInput
 }
 
 input UpdateUnionInput {
@@ -5505,6 +5759,10 @@ input _AddStageToContentViewsInput {
     gcms: String
 }
 
+input _AssignEnvironmentColorsInput {
+    gcms: String
+}
+
 input _BookOverLimitInput {
     gcms: String
 }
@@ -5517,11 +5775,23 @@ input _DeleteProjectInput {
     gcms: String
 }
 
+input _EnableEnvironmentBackupInput {
+    gcms: String
+}
+
 input _HideNonRequiredFieldsInDefaultContentViewInput {
     gcms: String
 }
 
 input _ResetContentConfigInput {
+    gcms: String
+}
+
+input _SanitizeContentViewStagesInput {
+    gcms: String
+}
+
+input _UpdateMemberRolesInput {
     gcms: String
 }
 

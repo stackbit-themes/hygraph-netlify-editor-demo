@@ -40,6 +40,21 @@ export enum AppContentPermission {
   ReadWrite = 'READ_WRITE'
 }
 
+export enum AppElementFieldType {
+  Boolean = 'BOOLEAN',
+  Color = 'COLOR',
+  Date = 'DATE',
+  Datetime = 'DATETIME',
+  Float = 'FLOAT',
+  Id = 'ID',
+  Int = 'INT',
+  Json = 'JSON',
+  Location = 'LOCATION',
+  Relation = 'RELATION',
+  Richtext = 'RICHTEXT',
+  String = 'STRING'
+}
+
 export enum AppElementType {
   Field = 'field',
   FormSidebar = 'formSidebar',
@@ -165,6 +180,27 @@ export type AppWithSecrets = IApp & {
   setupUrl: Scalars['String']['output'];
   updatedAt: Scalars['DateTime']['output'];
   webhookUrl?: Maybe<Scalars['String']['output']>;
+};
+
+export type AssetMigration = {
+  __typename?: 'AssetMigration';
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  isRevert: Scalars['Boolean']['output'];
+  isViewed: Scalars['Boolean']['output'];
+  lastCompletedStep: Scalars['Int']['output'];
+  sourceEnvironment?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type AssetMigrationProgressPayload = {
+  __typename?: 'AssetMigrationProgressPayload';
+  environmentId: Scalars['ID']['output'];
+  isRevert: Scalars['Boolean']['output'];
+  isViewed: Scalars['Boolean']['output'];
+  lastCompletedStep: Scalars['Int']['output'];
+  status: Scalars['String']['output'];
 };
 
 export type AssetModel = IFieldParent & IModel & {
@@ -328,7 +364,27 @@ export enum AvailableExtensionSrcType {
   Sdk = 'SDK'
 }
 
+export type BatchFieldConditionInput = {
+  /** API ID of the field used to set the condition, dependent field */
+  baseField: Scalars['String']['input'];
+  booleanValue?: InputMaybe<Scalars['Boolean']['input']>;
+  enumerationValues?: InputMaybe<Array<Scalars['String']['input']>>;
+  operator: FieldConditionOperator;
+};
+
+/** Creating an app installation. */
+export type BatchMigrationAppInstallationInput = {
+  appApiId: Scalars['String']['input'];
+  config: Scalars['JSON']['input'];
+};
+
+/** Deleting an app installation. */
+export type BatchMigrationAppUninstallationInput = {
+  appApiId: Scalars['String']['input'];
+};
+
 export type BatchMigrationChangeInput = {
+  createAppInstallation?: InputMaybe<BatchMigrationAppInstallationInput>;
   createComponent?: InputMaybe<BatchMigrationCreateComponentInput>;
   createComponentField?: InputMaybe<BatchMigrationCreateComponentFieldInput>;
   createComponentUnionField?: InputMaybe<BatchMigrationCreateComponentUnionFieldInput>;
@@ -347,6 +403,7 @@ export type BatchMigrationChangeInput = {
   createUnionField?: InputMaybe<BatchMigrationCreateUnionFieldInput>;
   /** creates a webhook */
   createWebhook?: InputMaybe<BatchMigrationCreateWebhookInput>;
+  deleteAppInstallation?: InputMaybe<BatchMigrationAppUninstallationInput>;
   deleteComponent?: InputMaybe<BatchMigrationDeleteComponentInput>;
   deleteCustomSidebarElement?: InputMaybe<BatchMigrationDeleteCustomSidebarElementInput>;
   deleteEnumeration?: InputMaybe<BatchMigrationDeleteEnumerationInput>;
@@ -393,6 +450,7 @@ export type BatchMigrationCreateComponentFieldInput = {
   tableExtension?: InputMaybe<Scalars['String']['input']>;
   tableRenderer?: InputMaybe<Scalars['String']['input']>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 /** Creating a component. */
@@ -417,6 +475,7 @@ export type BatchMigrationCreateComponentUnionFieldInput = {
   tableExtension?: InputMaybe<Scalars['String']['input']>;
   tableRenderer?: InputMaybe<Scalars['String']['input']>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 /** Creating a custom input type definition */
@@ -458,6 +517,7 @@ export type BatchMigrationCreateEnumerableFieldInput = {
   enumerationApiId: Scalars['String']['input'];
   formExtension?: InputMaybe<Scalars['String']['input']>;
   formRenderer?: InputMaybe<Scalars['String']['input']>;
+  initialValue?: InputMaybe<Scalars['String']['input']>;
   isHidden?: InputMaybe<Scalars['Boolean']['input']>;
   isList?: InputMaybe<Scalars['Boolean']['input']>;
   isLocalized?: InputMaybe<Scalars['Boolean']['input']>;
@@ -472,6 +532,7 @@ export type BatchMigrationCreateEnumerableFieldInput = {
   tableExtension?: InputMaybe<Scalars['String']['input']>;
   tableRenderer?: InputMaybe<Scalars['String']['input']>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 /** Creating enumeration */
@@ -532,6 +593,8 @@ export type BatchMigrationCreateModelInput = {
   displayName: Scalars['String']['input'];
   /** Only AppTokens should provide this flag */
   isSystem?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Sidebar elements to create */
+  sidebarElements?: InputMaybe<Array<BatchMigrationModelCustomSidebarElementInput>>;
 };
 
 export type BatchMigrationCreateRestRemoteSourceInput = {
@@ -554,6 +617,7 @@ export type BatchMigrationCreateRelationalFieldInput = {
   apiId: Scalars['String']['input'];
   description?: InputMaybe<Scalars['String']['input']>;
   displayName: Scalars['String']['input'];
+  formConfig?: InputMaybe<Scalars['JSON']['input']>;
   formExtension?: InputMaybe<Scalars['String']['input']>;
   formRenderer?: InputMaybe<Scalars['String']['input']>;
   isHidden?: InputMaybe<Scalars['Boolean']['input']>;
@@ -566,10 +630,12 @@ export type BatchMigrationCreateRelationalFieldInput = {
   modelApiId?: InputMaybe<Scalars['String']['input']>;
   parentApiId?: InputMaybe<Scalars['String']['input']>;
   reverseField: BatchMigrationCreateReverseRelationalFieldInput;
+  tableConfig?: InputMaybe<Scalars['JSON']['input']>;
   tableExtension?: InputMaybe<Scalars['String']['input']>;
   tableRenderer?: InputMaybe<Scalars['String']['input']>;
   type: RelationalFieldType;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 export type BatchMigrationCreateRemoteFieldInput = {
@@ -647,6 +713,7 @@ export type BatchMigrationCreateSimpleFieldInput = {
   type: SimpleFieldType;
   validations?: InputMaybe<SimpleFieldValidationsInput>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 /** Creating a stage. */
@@ -673,6 +740,7 @@ export type BatchMigrationCreateUnionFieldInput = {
   tableExtension?: InputMaybe<Scalars['String']['input']>;
   tableRenderer?: InputMaybe<Scalars['String']['input']>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 export type BatchMigrationCreateWebhookInput = {
@@ -722,7 +790,7 @@ export type BatchMigrationDeleteCustomSidebarElementInput = {
   modelApiId: Scalars['String']['input'];
 };
 
-/** Deleting enumarable field */
+/** Deleting enumerable field */
 export type BatchMigrationDeleteEnumerationInput = {
   apiId: Scalars['String']['input'];
 };
@@ -775,6 +843,24 @@ export type BatchMigrationInput = {
   name?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type BatchMigrationModelCustomSidebarElementInput = {
+  /** Api Id of the App */
+  appApiId: Scalars['String']['input'];
+  /** Api Id of the App element to create custom sidebar element with */
+  appElementApiId: Scalars['String']['input'];
+  /** Json metadata associated with the sidebar element */
+  config?: InputMaybe<Scalars['JSON']['input']>;
+  /** Description name for the sidebar element */
+  description?: InputMaybe<Scalars['String']['input']>;
+  /** Display name for the sidebar element */
+  displayName: Scalars['String']['input'];
+};
+
+export type BatchMigrationModelSystemSidebarElementInput = {
+  config?: InputMaybe<Scalars['JSON']['input']>;
+  type: SystemSidebarElementType;
+};
+
 export type BatchMigrationRefreshGraphQlRemoteSourceSchemaInput = {
   prefix: Scalars['String']['input'];
 };
@@ -817,6 +903,7 @@ export type BatchMigrationUpdateComponentFieldInput = {
   newApiId?: InputMaybe<Scalars['String']['input']>;
   parentApiId: Scalars['String']['input'];
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 /** Updating a component. */
@@ -836,6 +923,7 @@ export type BatchMigrationUpdateComponentUnionFieldInput = {
   displayName?: InputMaybe<Scalars['String']['input']>;
   newApiId?: InputMaybe<Scalars['String']['input']>;
   parentApiId: Scalars['String']['input'];
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 /** Updating enumerable field */
@@ -857,6 +945,7 @@ export type BatchMigrationUpdateEnumerableFieldInput = {
   parentApiId?: InputMaybe<Scalars['String']['input']>;
   position?: InputMaybe<Scalars['Int']['input']>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 /** Updating enumeration */
@@ -911,6 +1000,7 @@ export type BatchMigrationUpdateModelInput = {
   displayName?: InputMaybe<Scalars['String']['input']>;
   isSystem?: InputMaybe<Scalars['Boolean']['input']>;
   newApiId?: InputMaybe<Scalars['String']['input']>;
+  sidebarElementsToUpsert?: InputMaybe<BatchMigrationUpsertSidebarElementInput>;
 };
 
 export type BatchMigrationUpdateRestRemoteSourceInput = {
@@ -931,6 +1021,7 @@ export type BatchMigrationUpdateRelationalFieldInput = {
   apiId: Scalars['String']['input'];
   description?: InputMaybe<Scalars['String']['input']>;
   displayName?: InputMaybe<Scalars['String']['input']>;
+  formConfig?: InputMaybe<Scalars['JSON']['input']>;
   isHidden?: InputMaybe<Scalars['Boolean']['input']>;
   isList?: InputMaybe<Scalars['Boolean']['input']>;
   /**
@@ -942,7 +1033,9 @@ export type BatchMigrationUpdateRelationalFieldInput = {
   modelApiId?: InputMaybe<Scalars['String']['input']>;
   newApiId?: InputMaybe<Scalars['String']['input']>;
   parentApiId?: InputMaybe<Scalars['String']['input']>;
+  tableConfig?: InputMaybe<Scalars['JSON']['input']>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 export type BatchMigrationUpdateRemoteFieldConfigInput = {
@@ -1009,6 +1102,7 @@ export type BatchMigrationUpdateSimpleFieldInput = {
   tableRenderer?: InputMaybe<Scalars['String']['input']>;
   validations?: InputMaybe<SimpleFieldValidationsInput>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 /** Updating a stage */
@@ -1031,6 +1125,7 @@ export type BatchMigrationUpdateUnionFieldInput = {
   parentApiId?: InputMaybe<Scalars['String']['input']>;
   reverseField?: InputMaybe<BatchMigrationUpdateReverseUnionFieldInput>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<BatchFieldConditionInput>;
 };
 
 export type BatchMigrationUpdateWebhookInput = {
@@ -1049,6 +1144,13 @@ export type BatchMigrationUpdateWebhookInput = {
   triggerType?: InputMaybe<WebhookTriggerType>;
   url?: InputMaybe<Scalars['String']['input']>;
   webhookId: Scalars['ID']['input'];
+};
+
+export type BatchMigrationUpsertCustomSidebarElementInputToDeleteInput = {
+  /** Api Id of the App */
+  appApiId: Scalars['String']['input'];
+  /** Api Id of the App element associated with the custom sidebar element */
+  appElementApiId: Scalars['String']['input'];
 };
 
 export type BatchMigrationUpsertFieldInputArgInput = {
@@ -1095,10 +1197,41 @@ export type BatchMigrationUpsertRemoteTypeDefinitionsInput = {
   remoteTypeDefinitionsToUpdate?: InputMaybe<Array<BatchMigrationUpsertRemoteTypeDefinitionToUpdateInput>>;
 };
 
+export type BatchMigrationUpsertSidebarElementInput = {
+  customSidebarElementsToCreate?: InputMaybe<Array<BatchMigrationModelCustomSidebarElementInput>>;
+  customSidebarElementsToDelete?: InputMaybe<Array<BatchMigrationUpsertCustomSidebarElementInputToDeleteInput>>;
+  sidebarElementsToUpdate?: InputMaybe<Array<BatchMigrationUpsertSidebarElementInputToUpdateInput>>;
+  systemSidebarElementsToCreate?: InputMaybe<Array<BatchMigrationModelSystemSidebarElementInput>>;
+  systemSidebarElementsToDelete?: InputMaybe<Array<BatchMigrationUpsertSystemSidebarElementInputToDeleteInput>>;
+};
+
+export type BatchMigrationUpsertSidebarElementInputToUpdateInput = {
+  config?: InputMaybe<Scalars['JSON']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  displayName: Scalars['String']['input'];
+  newDisplayName?: InputMaybe<Scalars['String']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type BatchMigrationUpsertSystemSidebarElementInputToDeleteInput = {
+  type: SystemSidebarElementType;
+};
+
 export type BillingPeriod = {
   __typename?: 'BillingPeriod';
   from: Scalars['DateTime']['output'];
   to: Scalars['DateTime']['output'];
+};
+
+export type BooleanFieldCondition = IFieldCondition & {
+  __typename?: 'BooleanFieldCondition';
+  /** Field used to set the condition */
+  baseField: SimpleField;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  operator: FieldConditionOperator;
+  updatedAt: Scalars['DateTime']['output'];
+  value: Scalars['Boolean']['output'];
 };
 
 export enum CacheControlScope {
@@ -1116,6 +1249,8 @@ export type CloneProjectInput = {
 
 /** clone project from a template */
 export type CloneProjectTemplateInput = {
+  /** Allows to clone project with App Installations from source Project */
+  appInstallations?: Scalars['Boolean']['input'];
   /** Set to false to not include content */
   content?: Scalars['Boolean']['input'];
   /** id of template (if it's marked as template) or id of a project you are an owner of */
@@ -1136,12 +1271,17 @@ export type CloningProject = IPendingProject & {
 };
 
 export enum ColorPalette {
+  Blue = 'BLUE',
   Brown = 'BROWN',
   Green = 'GREEN',
+  Indigo = 'INDIGO',
+  Neutral = 'NEUTRAL',
+  Olive = 'OLIVE',
   Orange = 'ORANGE',
   Pink = 'PINK',
   Purple = 'PURPLE',
   Red = 'RED',
+  Rose = 'ROSE',
   Teal = 'TEAL',
   Yellow = 'YELLOW'
 }
@@ -1222,7 +1362,7 @@ export type ComponentFieldsConnectionArgs = {
   skip?: Scalars['Int']['input'];
 };
 
-export type ComponentField = IField & IRequireableField & {
+export type ComponentField = IField & IRequireableField & IVisibilityConditionalField & {
   __typename?: 'ComponentField';
   apiId: Scalars['String']['output'];
   component: Component;
@@ -1251,13 +1391,14 @@ export type ComponentField = IField & IRequireableField & {
   type: ComponentFieldType;
   updatedAt: Scalars['DateTime']['output'];
   visibility: VisibilityTypes;
+  visibilityCondition?: Maybe<IFieldCondition>;
 };
 
 export enum ComponentFieldType {
   Component = 'COMPONENT'
 }
 
-export type ComponentUnionField = IField & IRequireableField & {
+export type ComponentUnionField = IField & IRequireableField & IVisibilityConditionalField & {
   __typename?: 'ComponentUnionField';
   apiId: Scalars['String']['output'];
   components: Array<Component>;
@@ -1285,6 +1426,7 @@ export type ComponentUnionField = IField & IRequireableField & {
   type: ComponentUnionFieldType;
   updatedAt: Scalars['DateTime']['output'];
   visibility: VisibilityTypes;
+  visibilityCondition?: Maybe<IFieldCondition>;
 };
 
 export enum ComponentUnionFieldType {
@@ -1489,6 +1631,7 @@ export type CreateComponentFieldInput = {
   position?: InputMaybe<Scalars['Int']['input']>;
   tableConfig?: InputMaybe<FieldConfigInput>;
   visibility?: VisibilityTypes;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type CreateComponentInput = {
@@ -1515,6 +1658,7 @@ export type CreateComponentUnionFieldInput = {
   position?: InputMaybe<Scalars['Int']['input']>;
   tableConfig?: InputMaybe<FieldConfigInput>;
   visibility?: VisibilityTypes;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type CreateContentPermission = IContentPermission & {
@@ -1629,6 +1773,7 @@ export type CreateEnumerableFieldInput = {
   tableConfig?: InputMaybe<FieldConfigInput>;
   type: EnumerableFieldType;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type CreateEnumerationInput = {
@@ -1641,6 +1786,8 @@ export type CreateEnumerationInput = {
 };
 
 export type CreateEnvironmentInput = {
+  /** Assign color to the environment, if not passed a random color will be set */
+  color?: InputMaybe<ColorPalette>;
   description?: InputMaybe<Scalars['String']['input']>;
   displayName: Scalars['String']['input'];
   /**
@@ -1655,6 +1802,11 @@ export type CreateEnvironmentInput = {
    * string between 1 and 16 characters
    */
   name: Scalars['String']['input'];
+  /**
+   * Allows to create environment
+   * with App Installations of origin environment
+   */
+  withAppInstallations?: Scalars['Boolean']['input'];
   /**
    * Setting this to false allows the environment to be created without the assets
    * of the origin environment.
@@ -1919,6 +2071,7 @@ export type CreateRelationalFieldInput = {
   tableConfig?: InputMaybe<FieldConfigInput>;
   type: RelationalFieldType;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type CreateRemoteFieldInput = {
@@ -2027,6 +2180,7 @@ export type CreateSimpleFieldInput = {
   type: SimpleFieldType;
   validations?: InputMaybe<SimpleFieldValidationsInput>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type CreateStageInput = {
@@ -2071,6 +2225,7 @@ export type CreateUnionFieldInput = {
   type: UnionFieldType;
   union: CreateUnionInput;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type CreateUnionInput = {
@@ -2390,7 +2545,7 @@ export type EmbeddableModelsInput = {
   modelsToRemove?: InputMaybe<Array<Scalars['ID']['input']>>;
 };
 
-export type EnumerableField = IField & ILocalizableField & IRequireableField & ITitleableField & IUniqueableField & {
+export type EnumerableField = IField & ILocalizableField & IRequireableField & ITitleableField & IUniqueableField & IVisibilityConditionalField & {
   __typename?: 'EnumerableField';
   apiId: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
@@ -2402,6 +2557,8 @@ export type EnumerableField = IField & ILocalizableField & IRequireableField & I
   formConfig: FieldConfig;
   id: Scalars['ID']['output'];
   initialValue?: Maybe<EnumerationValue>;
+  /** This is available if isList is true */
+  initialValueList?: Maybe<Array<EnumerationValue>>;
   /** @deprecated Use visibility instead */
   isHidden: Scalars['Boolean']['output'];
   isList: Scalars['Boolean']['output'];
@@ -2422,6 +2579,18 @@ export type EnumerableField = IField & ILocalizableField & IRequireableField & I
   type: EnumerableFieldType;
   updatedAt: Scalars['DateTime']['output'];
   visibility: VisibilityTypes;
+  visibilityCondition?: Maybe<IFieldCondition>;
+};
+
+export type EnumerableFieldCondition = IFieldCondition & {
+  __typename?: 'EnumerableFieldCondition';
+  /** Field used to set the condition */
+  baseField: EnumerableField;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  operator: FieldConditionOperator;
+  updatedAt: Scalars['DateTime']['output'];
+  value: Array<EnumerationValue>;
 };
 
 export enum EnumerableFieldType {
@@ -2435,6 +2604,7 @@ export type Enumeration = IRecentSchemaChange & {
   createdBy?: Maybe<CreatedBy>;
   description?: Maybe<Scalars['String']['output']>;
   displayName: Scalars['String']['output'];
+  enumerableFields: Array<EnumerableField>;
   environment: Environment;
   id: Scalars['ID']['output'];
   isSystem: Scalars['Boolean']['output'];
@@ -2466,7 +2636,10 @@ export type Environment = {
   appInstallation: AppInstallation;
   appInstallations: Array<AppInstallation>;
   assetConfig: IAssetConfig;
+  assetMigration?: Maybe<AssetMigration>;
+  assetSystemEnabled?: Maybe<Scalars['Boolean']['output']>;
   authToken: Scalars['String']['output'];
+  color?: Maybe<ColorPalette>;
   commentingConfig?: Maybe<CommentingConfig>;
   contentModel: ContentModel;
   contentView: ContentView;
@@ -2702,7 +2875,7 @@ export type FieldAppElement = IAppElement & {
   createdAt: Scalars['DateTime']['output'];
   description?: Maybe<Scalars['String']['output']>;
   features: Array<FieldAppElementFeature>;
-  fieldType: SimpleFieldType;
+  fieldType: AppElementFieldType;
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
   src: Scalars['String']['output'];
@@ -2714,6 +2887,22 @@ export enum FieldAppElementFeature {
   FieldRenderer = 'FieldRenderer',
   ListRenderer = 'ListRenderer',
   TableRenderer = 'TableRenderer'
+}
+
+export type FieldConditionInput = {
+  /** API ID of the field used to set the condition, dependent field */
+  baseField: Scalars['ID']['input'];
+  booleanValue?: InputMaybe<Scalars['Boolean']['input']>;
+  enumerationValues?: InputMaybe<Array<Scalars['ID']['input']>>;
+  operator: FieldConditionOperator;
+};
+
+export enum FieldConditionOperator {
+  ContainsAll = 'CONTAINS_ALL',
+  ContainsAny = 'CONTAINS_ANY',
+  ContainsNone = 'CONTAINS_NONE',
+  Is = 'IS',
+  IsNot = 'IS_NOT'
 }
 
 export type FieldConfig = {
@@ -3060,6 +3249,14 @@ export type IField = {
   visibility: VisibilityTypes;
 };
 
+export type IFieldCondition = {
+  /** Field used to set the condition */
+  baseField: IField;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
 export type IFieldParent = {
   apiId: Scalars['String']['output'];
   displayName: Scalars['String']['output'];
@@ -3255,6 +3452,10 @@ export type IViewerProjectArgs = {
   id?: InputMaybe<Scalars['ID']['input']>;
 };
 
+export type IVisibilityConditionalField = {
+  visibilityCondition?: Maybe<IFieldCondition>;
+};
+
 export type IntFieldValidations = {
   __typename?: 'IntFieldValidations';
   listItemCount?: Maybe<FieldValidationRange>;
@@ -3346,6 +3547,7 @@ export type Limit = {
 export enum LimitType {
   ApiOperations = 'API_OPERATIONS',
   AssetTraffic = 'ASSET_TRAFFIC',
+  AssetUploadFileSizeLimit = 'ASSET_UPLOAD_FILE_SIZE_LIMIT',
   AuditLogsRetentionPeriod = 'AUDIT_LOGS_RETENTION_PERIOD',
   ContentModels = 'CONTENT_MODELS',
   ContentPermissions = 'CONTENT_PERMISSIONS',
@@ -3358,6 +3560,7 @@ export enum LimitType {
   PermanentAuthTokens = 'PERMANENT_AUTH_TOKENS',
   RateLimitPerSecond = 'RATE_LIMIT_PER_SECOND',
   Records = 'RECORDS',
+  Regions = 'REGIONS',
   RemoteFields = 'REMOTE_FIELDS',
   RemoteFieldsHttpWorkers = 'REMOTE_FIELDS_HTTP_WORKERS',
   RemoteFieldsMaxExecutionTime = 'REMOTE_FIELDS_MAX_EXECUTION_TIME',
@@ -3437,6 +3640,11 @@ export type MemberEdge = {
 export type MemberHasPermissionsPayload = {
   __typename?: 'MemberHasPermissionsPayload';
   notAllowedActions: Array<PermissionAction>;
+};
+
+export type MemberWithRoles = {
+  __typename?: 'MemberWithRoles';
+  gcms?: Maybe<Scalars['String']['output']>;
 };
 
 export type MembersAggregate = {
@@ -3730,6 +3938,7 @@ export type Mutation = {
   duplicateModel: AsyncOperationPayload;
   leaveProject: LeaveProjectPayload;
   leaveTrial: LeaveTrialPayload;
+  markAssetMigrationAsViewed: UpgradeEnvironmentAssetPayload;
   moveContentView: MoveContentViewPayload;
   moveField: MoveFieldPayload;
   moveSidebarElement: MoveSidebarElementPayload;
@@ -3740,6 +3949,7 @@ export type Mutation = {
   resetSidebarElements: ResetSidebarElementsPayload;
   restoreEnvironmentBackup: RestoreEnvironmentBackupPayload;
   retriggerWebhook: RetriggerWebhookPayload;
+  revertPartialUpgradedEnvironmentAssets: UpgradeEnvironmentAssetPayload;
   revokeInvite: RevokeInvitePayload;
   sendFeedback: Feedback;
   sendInvite: SendInvitePayload;
@@ -4093,6 +4303,11 @@ export type MutationLeaveTrialArgs = {
 };
 
 
+export type MutationMarkAssetMigrationAsViewedArgs = {
+  data: UpgradeEnvironmentAssetInput;
+};
+
+
 export type MutationMoveContentViewArgs = {
   data: MoveContentViewInput;
 };
@@ -4140,6 +4355,11 @@ export type MutationRestoreEnvironmentBackupArgs = {
 
 export type MutationRetriggerWebhookArgs = {
   data: RetriggerWebhookInput;
+};
+
+
+export type MutationRevertPartialUpgradedEnvironmentAssetsArgs = {
+  data: UpgradeEnvironmentAssetInput;
 };
 
 
@@ -4657,22 +4877,50 @@ export enum PermissionAction {
 export type Plan = {
   __typename?: 'Plan';
   billingPeriodMonths: Scalars['Int']['output'];
+  canBeSwitchedTo: PlanSwitchCheckResponse;
   createdAt: Scalars['DateTime']['output'];
+  description?: Maybe<Scalars['String']['output']>;
   displayName: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   isEnterprise: Scalars['Boolean']['output'];
   isFree: Scalars['Boolean']['output'];
+  isLegacy?: Maybe<Scalars['Boolean']['output']>;
+  /** @deprecated This has been replaced by canBeSwitchedTo(projectId: ID!) */
   isSwitchable?: Maybe<Scalars['Boolean']['output']>;
+  isTrial: Scalars['Boolean']['output'];
   limits: Array<Limit>;
   name: Scalars['String']['output'];
   price: Scalars['Float']['output'];
+  switchType?: Maybe<PlanSwitchType>;
   updatedAt: Scalars['DateTime']['output'];
+};
+
+
+export type PlanCanBeSwitchedToArgs = {
+  projectId: Scalars['ID']['input'];
 };
 
 
 export type PlanIsSwitchableArgs = {
   projectId: Scalars['ID']['input'];
 };
+
+
+export type PlanSwitchTypeArgs = {
+  projectId: Scalars['ID']['input'];
+};
+
+export type PlanSwitchCheckResponse = {
+  __typename?: 'PlanSwitchCheckResponse';
+  reasons: Array<Maybe<Scalars['String']['output']>>;
+  switchable: Scalars['Boolean']['output'];
+};
+
+export enum PlanSwitchType {
+  Change = 'CHANGE',
+  Downgrade = 'DOWNGRADE',
+  Upgrade = 'UPGRADE'
+}
 
 export type Profile = {
   __typename?: 'Profile';
@@ -4696,6 +4944,7 @@ export type Progress = {
 
 export type Project = {
   __typename?: 'Project';
+  auditLog: AuditLog;
   auditLogs: AuditLogsPayload;
   availableManagementPermissions: Array<ManagementPermission>;
   cloningProjects: Array<CloningProject>;
@@ -4729,6 +4978,11 @@ export type Project = {
   trialExpiresIn?: Maybe<Scalars['DateTime']['output']>;
   updatedAt: Scalars['DateTime']['output'];
   viewerAsMember?: Maybe<Member>;
+};
+
+
+export type ProjectAuditLogArgs = {
+  id: Scalars['String']['input'];
 };
 
 
@@ -4778,6 +5032,7 @@ export type PromoteEnvironmentInput = {
   environmentId: Scalars['ID']['input'];
   renameCurrentMasterApiIdTo: Scalars['String']['input'];
   renameCurrentMasterDisplayNameTo: Scalars['String']['input'];
+  setCurrentMasterColorTo?: InputMaybe<ColorPalette>;
 };
 
 export type PromoteEnvironmentPayload = {
@@ -4948,6 +5203,8 @@ export type ReadVersionContentPermission = IContentPermission & {
 
 export type Region = {
   __typename?: 'Region';
+  awsRegion?: Maybe<Scalars['String']['output']>;
+  enabled: Scalars['Boolean']['output'];
   id: Scalars['String']['output'];
   isBeta: Scalars['Boolean']['output'];
   isReadOnly: Scalars['Boolean']['output'];
@@ -4955,7 +5212,7 @@ export type Region = {
   pingUrl?: Maybe<Scalars['String']['output']>;
 };
 
-export type RelationalField = IField & IRequireableField & {
+export type RelationalField = IField & IRequireableField & IVisibilityConditionalField & {
   __typename?: 'RelationalField';
   apiId: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
@@ -4984,6 +5241,7 @@ export type RelationalField = IField & IRequireableField & {
   type: RelationalFieldType;
   updatedAt: Scalars['DateTime']['output'];
   visibility: VisibilityTypes;
+  visibilityCondition?: Maybe<IFieldCondition>;
 };
 
 export enum RelationalFieldType {
@@ -5335,7 +5593,7 @@ export type SidebarExtension = IExtension & {
   updatedBy?: Maybe<Member>;
 };
 
-export type SimpleField = IField & ILocalizableField & IRequireableField & ITitleableField & IUniqueableField & {
+export type SimpleField = IField & ILocalizableField & IRequireableField & ITitleableField & IUniqueableField & IVisibilityConditionalField & {
   __typename?: 'SimpleField';
   apiId: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
@@ -5369,6 +5627,7 @@ export type SimpleField = IField & ILocalizableField & IRequireableField & ITitl
   updatedAt: Scalars['DateTime']['output'];
   validations?: Maybe<SimpleFieldValidations>;
   visibility: VisibilityTypes;
+  visibilityCondition?: Maybe<IFieldCondition>;
 };
 
 /** Field types */
@@ -5460,12 +5719,18 @@ export type StringFieldValidationsInput = {
 
 export type Subscription = {
   __typename?: 'Subscription';
+  assetMigrationProgress: AssetMigrationProgressPayload;
   environmentCreated: EnvironmentCreatedPayload;
   environmentPromoted: EnvironmentPromotedPayload;
   netlifyBuildNotification: NetlifyIntegrationCallbackPayload;
   projectChanged: ProjectChangedPayload;
   projectCreated: ProjectCreatedPayload;
   schemaMigration: ISchemaMigrationPayload;
+};
+
+
+export type SubscriptionAssetMigrationProgressArgs = {
+  projectId: Scalars['ID']['input'];
 };
 
 
@@ -5601,7 +5866,7 @@ export type TriggerNetlifyIntegrationBuildPayload = {
   integration: NetlifyIntegration;
 };
 
-export type UniDirectionalRelationalField = IField & IRequireableField & {
+export type UniDirectionalRelationalField = IField & IRequireableField & IVisibilityConditionalField & {
   __typename?: 'UniDirectionalRelationalField';
   apiId: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
@@ -5629,6 +5894,7 @@ export type UniDirectionalRelationalField = IField & IRequireableField & {
   type: RelationalFieldType;
   updatedAt: Scalars['DateTime']['output'];
   visibility: VisibilityTypes;
+  visibilityCondition?: Maybe<IFieldCondition>;
 };
 
 export type Union = {
@@ -5641,7 +5907,7 @@ export type Union = {
   memberTypes: Array<UnionField>;
 };
 
-export type UnionField = IField & IUnionField & {
+export type UnionField = IField & IUnionField & IVisibilityConditionalField & {
   __typename?: 'UnionField';
   apiId: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
@@ -5670,6 +5936,7 @@ export type UnionField = IField & IUnionField & {
   union: Union;
   updatedAt: Scalars['DateTime']['output'];
   visibility: VisibilityTypes;
+  visibilityCondition?: Maybe<IFieldCondition>;
 };
 
 export enum UnionFieldType {
@@ -5712,6 +5979,7 @@ export type UpdateComponentFieldInput = {
   meta?: InputMaybe<Scalars['JSON']['input']>;
   tableConfig?: InputMaybe<FieldConfigInput>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type UpdateComponentInput = {
@@ -5742,6 +6010,7 @@ export type UpdateComponentUnionFieldInput = {
   meta?: InputMaybe<Scalars['JSON']['input']>;
   tableConfig?: InputMaybe<FieldConfigInput>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type UpdateContentPermission = IContentPermission & {
@@ -5822,6 +6091,7 @@ export type UpdateEnumerableFieldInput = {
   migrationValue?: InputMaybe<Scalars['String']['input']>;
   tableConfig?: InputMaybe<FieldConfigInput>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type UpdateEnumerationInput = {
@@ -5843,6 +6113,8 @@ export type UpdateEnumerationInput = {
 };
 
 export type UpdateEnvironmentInput = {
+  /** Update assigned color to the environment */
+  color?: InputMaybe<ColorPalette>;
   /** Update the environment description */
   description?: InputMaybe<Scalars['String']['input']>;
   /** Update the environment display name */
@@ -6108,6 +6380,7 @@ export type UpdateRelationalFieldInput = {
   meta?: InputMaybe<Scalars['JSON']['input']>;
   tableConfig?: InputMaybe<FieldConfigInput>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type UpdateRemoteFieldConfigInput = {
@@ -6199,6 +6472,7 @@ export type UpdateSimpleFieldInput = {
   tableConfig?: InputMaybe<FieldConfigInput>;
   validations?: InputMaybe<SimpleFieldValidationsInput>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type UpdateStageFilestackSecurityOptionsInput = {
@@ -6239,6 +6513,7 @@ export type UpdateUnionFieldInput = {
   tableConfig?: InputMaybe<FieldConfigInput>;
   union?: InputMaybe<UpdateUnionInput>;
   visibility?: InputMaybe<VisibilityTypes>;
+  visibilityCondition?: InputMaybe<FieldConditionInput>;
 };
 
 export type UpdateUnionInput = {
@@ -6524,6 +6799,11 @@ export type UserViewerPendingProjectArgs = {
 };
 
 
+export type UserViewerPlansArgs = {
+  projectId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
 export type UserViewerProjectArgs = {
   id?: InputMaybe<Scalars['ID']['input']>;
 };
@@ -6746,6 +7026,15 @@ export type _AddStageToContentViewsPayload = {
   gcms?: Maybe<Scalars['String']['output']>;
 };
 
+export type _AssignEnvironmentColorsInput = {
+  gcms?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type _AssignEnvironmentColorsPayload = {
+  __typename?: '_AssignEnvironmentColorsPayload';
+  gcms?: Maybe<Scalars['String']['output']>;
+};
+
 export type _BookOverLimitAddonUsage = {
   __typename?: '_BookOverLimitAddonUsage';
   gcms?: Maybe<Scalars['String']['output']>;
@@ -6775,6 +7064,15 @@ export type _DeleteProjectInput = {
 
 export type _DeleteProjectPayload = {
   __typename?: '_DeleteProjectPayload';
+  gcms?: Maybe<Scalars['String']['output']>;
+};
+
+export type _EnableEnvironmentBackupInput = {
+  gcms?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type _EnableEnvironmentBackupPayload = {
+  __typename?: '_EnableEnvironmentBackupPayload';
   gcms?: Maybe<Scalars['String']['output']>;
 };
 
@@ -6824,6 +7122,19 @@ export type _ResetContentConfigInput = {
 export type _ResetContentConfigPayload = {
   __typename?: '_ResetContentConfigPayload';
   gcms?: Maybe<Scalars['String']['output']>;
+};
+
+export type _SanitizeContentViewStagesInput = {
+  gcms?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type _SanitizeContentViewStagesPayload = {
+  __typename?: '_SanitizeContentViewStagesPayload';
+  gcms?: Maybe<Scalars['String']['output']>;
+};
+
+export type _UpdateMemberRolesInput = {
+  gcms?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type _UpdatePlanTrialInput = {
