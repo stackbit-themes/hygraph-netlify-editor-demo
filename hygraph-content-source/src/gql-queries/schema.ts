@@ -17,6 +17,12 @@ export const getSchema = gql`
                     name
                     contentModel {
                         __typename
+                        locales {
+                            id
+                            apiId
+                            isDefault
+                            displayName
+                        }
                         assetModel {
                             id
                         }

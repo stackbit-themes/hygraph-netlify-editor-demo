@@ -94,6 +94,10 @@ export type HygraphEntry = {
     }[];
     scheduledIn?: ScheduledOperation[];
     history?: Version[];
+    localizations?: {
+        locale: string;
+        [key: string]: any;
+    }[];
     [key: string]: any;
 };
 
@@ -154,6 +158,7 @@ export interface HygraphApiClientOptions {
     contentApi: string;
     managementApi: string;
     managementToken: string;
+    componentQueryNestingLevel?: number;
     logger: StackbitTypes.Logger;
 }
 
@@ -206,12 +211,14 @@ export class HygraphApiClient {
     private environment: string;
     private logger: StackbitTypes.Logger;
     private debugGraphQLQueries: boolean;
+    private componentQueryNestingLevel: number;
 
     constructor(options: HygraphApiClientOptions) {
         this.projectId = options.projectId;
         this.environment = options.environment;
         this.logger = options.logger;
         this.debugGraphQLQueries = false;
+        this.componentQueryNestingLevel = options.componentQueryNestingLevel ?? 3;
 
         let contentApi = options.contentApi;
         // Replace "High performance endpoint" with "Regular read & write endpoint".
@@ -258,6 +265,7 @@ export class HygraphApiClient {
             models: environment?.contentModel.models ?? [],
             components: environment?.contentModel.components ?? [],
             enumerations: environment?.contentModel.enumerations ?? [],
+            locales: environment?.contentModel.locales ?? [],
             assetModelId: environment?.contentModel.assetModel.id ?? null,
             maxPaginationSize: result.viewer.project?.maxPaginationSize ?? 100
         };
@@ -317,6 +325,7 @@ export class HygraphApiClient {
                         ...defaultDocumentQueryFields({
                             model,
                             getModelByName: (modelName: string) => modelsByName[modelName],
+                            componentQueryNestingLevel: this.componentQueryNestingLevel,
                             logger: this.logger
                         })
                     }
@@ -386,6 +395,7 @@ export class HygraphApiClient {
                     ...defaultDocumentQueryFields({
                         model,
                         getModelByName,
+                        componentQueryNestingLevel: this.componentQueryNestingLevel,
                         logger: this.logger
                     })
                 }
@@ -801,6 +811,7 @@ export function wrapEnumValue(value: string) {
 function defaultDocumentQueryFields(options: {
     model: ModelWithContext;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
+    componentQueryNestingLevel: number;
     logger: StackbitTypes.Logger;
 }) {
     return {
@@ -825,20 +836,32 @@ function defaultDocumentQueryFields(options: {
 function convertFieldsToQueryAST({
     model,
     getModelByName,
+    componentQueryNestingLevel,
     visitedModelsCount = {},
     logger
 }: {
     model: ModelWithContext;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
+    componentQueryNestingLevel: number;
     visitedModelsCount?: Record<string, number>;
     logger: StackbitTypes.Logger;
 }): Record<string, any> {
     const fieldAst: Record<string, any> = {};
+    if (model.context?.isLocalized) {
+        fieldAst.localizations = {
+            __arguments: { includeCurrent: true },
+            locale: 1
+        };
+    }
     for (const field of model.fields ?? []) {
         const fieldOrListItem = field.type === 'list' ? field.items : field;
+        let target = fieldAst;
+        if (field.localized) {
+            target = fieldAst.localizations;
+        }
         switch (fieldOrListItem.type) {
             case 'richText': {
-                fieldAst[field.name] = {
+                target[field.name] = {
                     __typename: 1,
                     markdown: 1,
                     text: 1
@@ -846,7 +869,7 @@ function convertFieldsToQueryAST({
                 break;
             }
             case 'color': {
-                fieldAst[field.name] = {
+                target[field.name] = {
                     __typename: 1,
                     rgba: { r: 1, g: 1, b: 1, a: 1 }
                 };
@@ -868,8 +891,8 @@ function convertFieldsToQueryAST({
                         __typename: 1,
                         __on: {
                             ...fieldOrListItem.models.reduce((accum: any, modelName) => {
-                                const visitedCount = visitedModelsCount[modelName];
-                                if (typeof visitedCount !== 'undefined' && visitedCount > 5) {
+                                const visitedCount = visitedModelsCount[modelName] ?? 0;
+                                if (visitedCount > componentQueryNestingLevel) {
                                     return accum;
                                 }
                                 const model = getModelByName(modelName);
@@ -879,9 +902,10 @@ function convertFieldsToQueryAST({
                                 const modelFields = convertFieldsToQueryAST({
                                     model,
                                     getModelByName,
+                                    componentQueryNestingLevel,
                                     visitedModelsCount: {
                                         ...visitedModelsCount,
-                                        [modelName]: (visitedModelsCount[modelName] ?? 0) + 1
+                                        [modelName]: visitedCount + 1
                                     },
                                     logger
                                 });
@@ -908,8 +932,8 @@ function convertFieldsToQueryAST({
                     };
                 } else if (fieldOrListItem.models.length === 1 && !multiModelField) {
                     const modelName = fieldOrListItem.models[0]!;
-                    const visitedCount = visitedModelsCount[modelName];
-                    if (typeof visitedCount !== 'undefined' && visitedCount > 5) {
+                    const visitedCount = visitedModelsCount[modelName] ?? 0;
+                    if (visitedCount > componentQueryNestingLevel) {
                         break;
                     }
                     const model = getModelByName(modelName);
@@ -920,9 +944,10 @@ function convertFieldsToQueryAST({
                             ...convertFieldsToQueryAST({
                                 model,
                                 getModelByName,
+                                componentQueryNestingLevel,
                                 visitedModelsCount: {
                                     ...visitedModelsCount,
-                                    [modelName]: (visitedModelsCount[modelName] ?? 0) + 1
+                                    [modelName]: visitedCount + 1
                                 },
                                 logger
                             })
@@ -959,7 +984,7 @@ function convertFieldsToQueryAST({
                 break;
             }
             default: {
-                fieldAst[field.name] = 1;
+                target[field.name] = 1;
             }
         }
     }

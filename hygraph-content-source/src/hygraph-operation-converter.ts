@@ -89,6 +89,7 @@ export function convertOperations({
             case 'set': {
                 const data = createUpdateObjectFromFieldPath({
                     fieldPath: operation.fieldPath,
+                    locale: operation.locale,
                     document,
                     getModelByName,
                     value: (fieldName, model, isListItem) => {
@@ -99,10 +100,15 @@ export function convertOperations({
                             getModelByName,
                             getModelNameForDocumentId
                         });
+                        // When setting primitive values inside a list, we must set the whole list
+                        // because Hygraph doesn't support updating primitive values in lists by their position
+                        // If the field is not primitive, then the value returned by the convertUpdateOperationFieldToValue
+                        // will be compatible with adding values to lists and objects fields.
                         if (isListItem && isSimpleFieldType(operation.modelField.type)) {
                             const documentField = getDocumentFieldAtFieldPath({
                                 document,
-                                fieldPath: _.dropRight(operation.fieldPath)
+                                fieldPath: _.dropRight(operation.fieldPath),
+                                locale: operation.locale
                             });
                             if (documentField.type !== 'list') {
                                 throw new Error(`Error updating document, cannot reorder non list field`);
@@ -127,6 +133,7 @@ export function convertOperations({
             case 'unset': {
                 const data = createUpdateObjectFromFieldPath({
                     fieldPath: operation.fieldPath,
+                    locale: operation.locale,
                     document,
                     getModelByName,
                     value: () => {
@@ -147,6 +154,7 @@ export function convertOperations({
                 let customizer: undefined | ((objValue: any, srcValue: any, key: any) => any);
                 const data = createUpdateObjectFromFieldPath({
                     fieldPath: operation.fieldPath,
+                    locale: operation.locale,
                     document,
                     getModelByName,
                     value: (fieldName, model) => {
@@ -179,7 +187,8 @@ export function convertOperations({
                         } else {
                             const documentField = getDocumentFieldAtFieldPath({
                                 document,
-                                fieldPath: operation.fieldPath
+                                fieldPath: operation.fieldPath,
+                                locale: operation.locale
                             });
                             if (documentField.type !== 'list') {
                                 throw new Error(`Error updating document, cannot reorder non list field`);
@@ -216,13 +225,15 @@ export function convertOperations({
                 const fieldPath = operation.fieldPath.concat(operation.index);
                 const data = createUpdateObjectFromFieldPath({
                     fieldPath: fieldPath,
+                    locale: operation.locale,
                     document,
                     getModelByName,
                     value: () => {
                         if (isSimpleFieldType(modelField.items.type)) {
                             const documentField = getDocumentFieldAtFieldPath({
                                 document,
-                                fieldPath: operation.fieldPath
+                                fieldPath: operation.fieldPath,
+                                locale: operation.locale
                             });
                             if (documentField.type !== 'list') {
                                 throw new Error(`Error updating document, cannot reorder non list field`);
@@ -259,7 +270,11 @@ export function convertOperations({
                 break;
             }
             case 'reorder': {
-                const documentField = getDocumentFieldAtFieldPath({ document, fieldPath: operation.fieldPath });
+                const documentField = getDocumentFieldAtFieldPath({
+                    document,
+                    fieldPath: operation.fieldPath,
+                    locale: operation.locale
+                });
                 const modelField = operation.modelField;
                 if (documentField.type !== 'list' || modelField.type !== 'list') {
                     throw new Error(`Error updating document, cannot reorder non list field`);
@@ -322,6 +337,7 @@ export function convertOperations({
 
                 const data = createUpdateObjectFromFieldPath({
                     fieldPath: operation.fieldPath,
+                    locale: operation.locale,
                     document,
                     getModelByName,
                     value: (fieldName, model) => {
@@ -445,11 +461,13 @@ export function convertOperations({
  */
 function createUpdateObjectFromFieldPath({
     fieldPath,
+    locale,
     document,
     getModelByName,
     value
 }: {
     fieldPath: StackbitTypes.FieldPath;
+    locale: string | undefined;
     document: DocumentWithContext;
     getModelByName: (name: string) => ModelWithContext | undefined;
     value: (fieldName: string, model: ModelWithContext, isListItem: boolean) => any;
@@ -474,16 +492,55 @@ function createUpdateObjectFromFieldPath({
             if (!modelField) {
                 throw new Error(`Model field '${fieldName}' in model ${model.name} not found`);
             }
+            if (modelField.localized && locale) {
+                if (!targetField) {
+                    // If this is not the final field in the fieldPath chain,
+                    // then the operation is done on an existing object,
+                    // and we can use the "update" command.
+                    nextValue = {};
+                    currValue['localizations'] = {
+                        update: {
+                            locale: wrapEnumValue(locale),
+                            data: nextValue
+                        }
+                    };
+                    currValue = nextValue;
+                } else {
+                    // If this is the final field in the fieldPath chain, check
+                    // if there is a localized document field at the target path.
+                    // If the localization for this locale was already created,
+                    // the localized field will be present, possibly with a null
+                    // value, otherwise, the localized field will not be present.
+                    let localizedFieldExists = true;
+                    try {
+                        const field = getDocumentFieldAtFieldPath({ document, fieldPath, locale });
+                    } catch (e) {
+                        localizedFieldExists = false;
+                    }
+                    nextValue = {};
+                    currValue['localizations'] = {
+                        [localizedFieldExists ? 'update' : 'create']: {
+                            locale: wrapEnumValue(locale),
+                            data: nextValue
+                        }
+                    };
+                    currValue = nextValue;
+                }
+            }
+            // Skip list fields if they are in the middle of the fieldPath chain
+            // because list fields do not have any additional nesting in the GraphQL query.
             if (modelField.type === 'list' && !targetField) {
+                // Set isListItem = true for the next fieldPath item in the iteration.
+                // Although, it can also be computed in the next iteration by typeof fieldName === "number"
                 isListItem = true;
                 continue;
             }
         }
-        const fieldPathStr = fieldPath.slice(0, idx + 1).join('.');
         if (targetField) {
             currValue[lastStringFieldName!] = value(lastStringFieldName!, model, isListItem);
         } else {
             // If it is not a target field, then it must be a nested model (Hygraph Component)
+            const fieldPathStr = fieldPath.slice(0, idx + 1).join('.');
             const nestedModelInfo = document.context.nestedModelsInfo[fieldPathStr];
             if (!nestedModelInfo) {
                 throw new Error(`Error updating document, component ID at path ${fieldPathStr} not found`);

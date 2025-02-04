@@ -32,7 +32,7 @@ export const SystemDocumentFields = [
     'documentInStages',
     'scheduledIn',
     'history'
-];
+] as const;
 
 export function convertDocuments({
     hygraphEntries,
@@ -109,7 +109,13 @@ function convertFields({
     fieldPath,
     logger
 }: {
-    hygraphFields: Record<string, any>;
+    hygraphFields: {
+        localizations?: {
+            locale: string;
+            [key: string]: any;
+        }[];
+        [key: string]: any;
+    };
     model: ModelWithContext;
     nestedModelsInfo: NestedModelsInfo;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
@@ -117,7 +123,18 @@ function convertFields({
     logger: StackbitTypes.Logger;
 }): Record<string, StackbitTypes.DocumentField> {
     const fields: Record<string, StackbitTypes.DocumentField> = {};
-    for (const [fieldName, fieldValue] of Object.entries(hygraphFields)) {
+    const { localizations = [], ...nonLocalizedFields } = hygraphFields;
+    const localizedFields = localizations.reduce((accum: Record<string, Record<string, any>>, localizedFields) => {
+        const { locale, ...fields } = localizedFields;
+        for (const [fieldName, fieldValue] of Object.entries(fields)) {
+            if (!(fieldName in accum)) {
+                accum[fieldName] = {};
+            }
+            accum[fieldName]![locale] = fieldValue;
+        }
+        return accum;
+    }, {});
+    for (const [fieldName, fieldValue] of Object.entries({ ...nonLocalizedFields, ...localizedFields })) {
         if (fieldValue === null) {
             continue;
         }
@@ -128,6 +145,7 @@ function convertFields({
         const documentField = convertField({
             fieldValue,
             modelField,
+            isLocalizedField: !!modelField.localized,
             nestedModelsInfo,
             getModelByName,
             fieldInfo: model.context?.fieldInfoMap[fieldName],
@@ -153,17 +171,20 @@ function convertField(
     options: {
         fieldValue: any;
         modelField: StackbitTypes.Field;
+        isLocalizedField: boolean;
     } & convertFieldOptions
 ): StackbitTypes.DocumentField | undefined;
 function convertField(
     options: {
         fieldValue: any[];
         modelField: StackbitTypes.FieldListItems;
+        isLocalizedField: false;
     } & convertFieldOptions
 ): StackbitTypes.DocumentListFieldItems | undefined;
 function convertField({
     fieldValue,
     modelField,
+    isLocalizedField,
     nestedModelsInfo,
     getModelByName,
     fieldInfo,
@@ -172,6 +193,7 @@ function convertField({
 }: {
     fieldValue: any;
     modelField: StackbitTypes.FieldSpecificProps;
+    isLocalizedField: boolean;
 } & convertFieldOptions): StackbitTypes.DocumentField | undefined {
     switch (modelField.type) {
         case 'string':
@@ -186,26 +208,28 @@ function convertField({
         case 'datetime': {
             return {
                 type: modelField.type,
-                value: fieldValue
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({ value }))
             };
         }
         case 'color': {
             return {
                 type: modelField.type,
-                value: colorToHex(fieldValue)
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({ value: colorToHex(value) }))
             };
         }
         case 'json': {
             return {
                 type: modelField.type,
-                value: fieldValue
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({ value }))
             };
         }
         case 'richText': {
             return {
                 type: modelField.type,
-                value: fieldValue.markdown,
-                hint: fieldValue.text.substring(0, 50)
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({
+                    value: value.markdown,
+                    hint: value.text.substring(0, 50)
+                }))
             };
         }
         case 'file': {
@@ -216,7 +240,7 @@ function convertField({
         case 'enum': {
             return {
                 type: modelField.type,
-                value: fieldValue
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({ value }))
             };
         }
         case 'image': {
@@ -279,23 +303,27 @@ function convertField({
         case 'list': {
             return {
                 type: modelField.type,
-                items: !Array.isArray(fieldValue)
-                    ? []
-                    : fieldValue
-                          .map((itemValue, index) =>
-                              convertField({
-                                  fieldValue: itemValue,
-                                  modelField: modelField.items,
-                                  nestedModelsInfo,
-                                  getModelByName,
-                                  fieldInfo,
-                                  fieldPath: fieldPath.concat(index),
-                                  logger
-                              })
-                          )
-                          .filter(
-                              (documentField): documentField is StackbitTypes.DocumentListFieldItems => !!documentField
-                          )
+                ...localizedIfNeeded(fieldValue, isLocalizedField, (value) => ({
+                    items: !Array.isArray(value)
+                        ? []
+                        : value
+                              .map((itemValue, index) =>
+                                  convertField({
+                                      fieldValue: itemValue,
+                                      modelField: modelField.items,
+                                      isLocalizedField: false,
+                                      nestedModelsInfo,
+                                      getModelByName,
+                                      fieldInfo,
+                                      fieldPath: fieldPath.concat(index),
+                                      logger
+                                  })
+                              )
+                              .filter(
+                                  (documentField): documentField is StackbitTypes.DocumentListFieldItems =>
+                                      !!documentField
+                              )
+                }))
             };
         }
         case 'style': {
@@ -318,4 +346,34 @@ function getDocumentStatus(hygraphEntry: HygraphEntry): StackbitTypes.DocumentSt
         return 'published';
     }
     return 'modified';
+}
+
+function localizedIfNeeded<Type>(
+    fieldValue: any,
+    isLocalizedField: boolean,
+    valueFn: (value: any) => Type
+):
+    | Type
+    | {
+          localized: true;
+          locales: Record<
+              string,
+              {
+                  locale: string;
+              } & Type
+          >;
+      } {
+    if (isLocalizedField) {
+        return {
+            localized: true,
+            locales: _.mapValues(fieldValue, (value, locale) => {
+                return {
+                    locale,
+                    ...valueFn(value)
+                };
+            })
+        };
+    } else {
+        return valueFn(fieldValue);
+    }
 }

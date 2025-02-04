@@ -78,6 +78,13 @@ interface HygraphContentSourceOptions {
     managementToken: string;
 
     /**
+     * The nesting level in GraphQL queries for cyclic components.
+     * This can help reducing query complexity for large content schemas.
+     * Default: 3
+     */
+    componentQueryNestingLevel?: number;
+
+    /**
      * The `entriesFilter` can be used to filter entries fetched by the
      * HygraphContentSource.
      *
@@ -115,8 +122,6 @@ interface HygraphContentSourceOptions {
     entriesFilter?: Record<string, string>;
 }
 
-// TODO: implement caching
-
 export class HygraphContentSource
     implements
         StackbitTypes.ContentSourceInterface<unknown, SchemaContext, DocumentContext, AssetContext, ModelContext>
@@ -128,6 +133,7 @@ export class HygraphContentSource
     private managementApi: string;
     private managementToken: string;
     private entriesFilter: Record<string, string> | undefined;
+    private componentQueryNestingLevel?: number;
     private client!: HygraphApiClient;
     private logger!: StackbitTypes.Logger;
     private userLogger!: StackbitTypes.Logger;
@@ -142,6 +148,7 @@ export class HygraphContentSource
         this.managementApi = options.managementApi;
         this.managementToken = options.managementToken;
         this.entriesFilter = options.entriesFilter;
+        this.componentQueryNestingLevel = options.componentQueryNestingLevel;
     }
 
     async getVersion(): Promise<StackbitTypes.Version> {
@@ -181,6 +188,7 @@ export class HygraphContentSource
             contentApi: this.contentApi,
             managementApi: this.managementApi,
             managementToken: this.managementToken,
+            componentQueryNestingLevel: this.componentQueryNestingLevel,
             logger: this.logger
         });
 
@@ -220,11 +228,11 @@ export class HygraphContentSource
             logger: this.logger
         });
         this.logger.debug(
-            `got ${models.length} models, ${schema.enumerations.length} enumerations, ${schema.components.length} components, maxPaginationSize: ${schema.maxPaginationSize}`
+            `got ${models.length} models, ${schema.enumerations.length} enumerations, ${schema.components.length} components, locales: ${schema.locales.length}, maxPaginationSize: ${schema.maxPaginationSize}`
         );
         return {
             models: models,
-            locales: [],
+            locales: schema.locales.map((locale) => ({ code: locale.apiId, default: locale.isDefault })),
             context: {
                 assetModelId: schema.assetModelId,
                 maxPaginationSize: schema.maxPaginationSize
@@ -517,7 +525,7 @@ export class HygraphContentSource
         userContext?: StackbitTypes.User | undefined;
     }): Promise<void> {
         // TODO: implement update asset
-        throw new Error('Method not implemented.');
+        throw new Error('Updating assets is not supported.');
     }
 
     async validateDocuments(options: {

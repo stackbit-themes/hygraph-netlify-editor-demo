@@ -18,6 +18,7 @@ export type ModelWithContext = StackbitTypes.Model<ModelContext>;
 export type ModelContext = {
     internalId: string;
     pluralId: string;
+    isLocalized: boolean;
     fieldInfoMap: FieldInfoMap;
 };
 
@@ -76,6 +77,7 @@ function convertModel({
         context: {
             internalId: model.id,
             pluralId: model.apiIdPlural,
+            isLocalized: model.isLocalized,
             fieldInfoMap
         }
     };
