@@ -13,7 +13,6 @@ export type SchemaContext = {
     maxPaginationSize: number;
 };
 
-// Remap model.context to be required for easier typing.
 export type ModelWithContext = StackbitTypes.Model<ModelContext>;
 export type ModelContext = {
     internalId: string;

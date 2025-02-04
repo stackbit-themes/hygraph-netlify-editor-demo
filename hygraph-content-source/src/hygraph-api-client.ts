@@ -2,17 +2,8 @@ import _ from 'lodash';
 import type * as StackbitTypes from '@stackbit/types';
 import { deepMap } from '@stackbit/utils';
 import { GraphQLClient } from 'graphql-request';
-import type * as HygraphTypes from './gql-types/gql-management-types';
-import {
-    Asset,
-    AssetUpload,
-    PageInfo,
-    Stage,
-    Maybe,
-    ScheduledOperation,
-    Version,
-    User
-} from './gql-types/gql-content-types';
+import type * as HGManageTypes from './gql-types/gql-management-types';
+import type * as HGContentTypes from './gql-types/gql-content-types';
 import type { ModelWithContext } from './hygraph-schema-converter';
 import { getSchema } from './gql-queries/schema';
 import { createWebhook, getWebhooks, updateWebhook } from './gql-queries/webhooks';
@@ -27,57 +18,58 @@ import {
 
 // The generated graphql types in the "gql-management-types.ts" file include the original field properties.
 // However, some fields in the "schema.ts" query were aliased due to conflicts between types.
-// Remap some of the field names matching aliases in the query.
+// Remap some of the field type properties to match the aliases in the query.
+// After the schema is fetched, we are going to map the aliased properties back
+// to their original names using the removeSchemaAliases() method to stay
+// consistent with the types defined in the "gql-management-types.ts".
 type AliasedHygraphField =
-    | (Omit<HygraphTypes.SimpleField, 'type' | 'validations'> & {
-          type_simple: HygraphTypes.SimpleField['type'];
+    | (Omit<HGManageTypes.SimpleField, 'type' | 'validations'> & {
+          type_simple: HGManageTypes.SimpleField['type'];
           validations?:
-              | Exclude<HygraphTypes.SimpleFieldValidations, HygraphTypes.FloatFieldValidations>
-              | (Omit<HygraphTypes.FloatFieldValidations, 'range'> & {
-                    range_float?: HygraphTypes.FloatFieldValidations['range'];
+              | Exclude<HGManageTypes.SimpleFieldValidations, HGManageTypes.FloatFieldValidations>
+              | (Omit<HGManageTypes.FloatFieldValidations, 'range'> & {
+                    range_float?: HGManageTypes.FloatFieldValidations['range'];
                 });
       })
-    | (Omit<HygraphTypes.EnumerableField, 'type' | 'initialValue'> & {
-          type_enum: HygraphTypes.EnumerableFieldType;
-          initialValue_enum?: HygraphTypes.EnumerableField['initialValue'];
+    | (Omit<HGManageTypes.EnumerableField, 'type' | 'initialValue'> & {
+          type_enum: HGManageTypes.EnumerableFieldType;
+          initialValue_enum?: HGManageTypes.EnumerableField['initialValue'];
       })
-    | (Omit<HygraphTypes.ComponentField, 'type'> & {
-          type_component: HygraphTypes.ComponentField['type'];
+    | (Omit<HGManageTypes.ComponentField, 'type'> & {
+          type_component: HGManageTypes.ComponentField['type'];
       })
-    | (Omit<HygraphTypes.ComponentUnionField, 'type'> & {
-          type_componentUnion: HygraphTypes.ComponentUnionField['type'];
+    | (Omit<HGManageTypes.ComponentUnionField, 'type'> & {
+          type_componentUnion: HGManageTypes.ComponentUnionField['type'];
       })
-    | (Omit<HygraphTypes.RelationalField, 'type'> & {
-          type_relation: HygraphTypes.RelationalFieldType;
+    | (Omit<HGManageTypes.RelationalField, 'type'> & {
+          type_relation: HGManageTypes.RelationalFieldType;
       })
-    | (Omit<HygraphTypes.UniDirectionalRelationalField, 'type'> & {
-          type_relation: HygraphTypes.RelationalFieldType;
+    | (Omit<HGManageTypes.UniDirectionalRelationalField, 'type'> & {
+          type_relation: HGManageTypes.RelationalFieldType;
       })
-    | (Omit<HygraphTypes.UnionField, 'type'> & {
-          type_union: HygraphTypes.UnionField['type'];
+    | (Omit<HGManageTypes.UnionField, 'type'> & {
+          type_union: HGManageTypes.UnionField['type'];
       })
-    | (Omit<HygraphTypes.RemoteField, 'type'> & {
-          type_remote: HygraphTypes.RemoteField['type'];
+    | (Omit<HGManageTypes.RemoteField, 'type'> & {
+          type_remote: HGManageTypes.RemoteField['type'];
       });
 
+/**
+ * Union of all Hygraph fields
+ */
 export type HygraphField =
-    | HygraphTypes.SimpleField
-    | HygraphTypes.EnumerableField
-    | HygraphTypes.ComponentField
-    | HygraphTypes.ComponentUnionField
-    | HygraphTypes.RelationalField
-    | HygraphTypes.UniDirectionalRelationalField
-    | HygraphTypes.UnionField
-    | HygraphTypes.RemoteField;
+    | HGManageTypes.SimpleField
+    | HGManageTypes.EnumerableField
+    | HGManageTypes.ComponentField
+    | HGManageTypes.ComponentUnionField
+    | HGManageTypes.RelationalField
+    | HGManageTypes.UniDirectionalRelationalField
+    | HGManageTypes.UnionField
+    | HGManageTypes.RemoteField;
 
-export type HygraphEntryConnectionResult = Record<
-    string,
-    {
-        edges: { node: HygraphEntry }[];
-        pageInfo: Pick<PageInfo, 'hasNextPage' | 'pageSize'>;
-    }
->;
-
+/**
+ * The Hygraph entry object fetched from Hygraph
+ */
 export type HygraphEntry = {
     __typename: string;
     id: string;
@@ -87,13 +79,13 @@ export type HygraphEntry = {
     updatedBy?: HygraphUser;
     publishedAt: string | null;
     publishedBy: HygraphUser | null;
-    stage: Stage;
+    stage: HGContentTypes.Stage;
     documentInStages: {
-        stage: Stage;
+        stage: HGContentTypes.Stage;
         updatedAt: string;
     }[];
-    scheduledIn?: ScheduledOperation[];
-    history?: Version[];
+    scheduledIn?: HGContentTypes.ScheduledOperation[];
+    history?: HGContentTypes.Version[];
     localizations?: {
         locale: string;
         [key: string]: any;
@@ -101,8 +93,11 @@ export type HygraphEntry = {
     [key: string]: any;
 };
 
+/**
+ * The Asset object fetched from Hygraph
+ */
 export type HygraphAsset = Pick<
-    Asset,
+    HGContentTypes.Asset,
     | 'id'
     | 'createdAt'
     | 'createdBy'
@@ -118,39 +113,24 @@ export type HygraphAsset = Pick<
     | 'height'
 > & {
     __typename: 'Asset';
-    documentInStages: Pick<Asset, 'stage' | 'updatedAt'>[];
-    upload?: Maybe<Pick<AssetUpload, 'status'>>;
+    documentInStages: Pick<HGContentTypes.Asset, 'stage' | 'updatedAt'>[];
+    upload?: HGContentTypes.Maybe<Pick<HGContentTypes.AssetUpload, 'status'>>;
 };
 
-export type GetWebhooksResult = {
-    viewer: {
-        project?: {
-            environment: {
-                id: string;
-                webhooks: Pick<HygraphTypes.Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>[];
-            };
-        };
-    };
-};
-
-export type CreateWebhookResponse = {
-    createWebhook: {
-        createdWebhook: Pick<HygraphTypes.Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>;
-    };
-};
-
-export type UpdateWebhookResponse = {
-    updateWebhook: {
-        updatedWebhook: Pick<HygraphTypes.Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>;
-    };
-};
+/**
+ * The minimal Webhook object fetched from Hygraph
+ */
+export type HygraphWebhook = Pick<HGManageTypes.Webhook, '__typename' | 'id' | 'name' | 'url' | 'isActive'>;
 
 export type HygraphWebhookPayload = {
     operation: 'create' | 'update' | 'publish' | 'unpublish' | 'delete';
     data: HygraphEntry | HygraphAsset;
 };
 
-export type HygraphUser = Pick<User, 'id' | 'name' | 'kind'>;
+/**
+ * The minimal User object fetched from Hygraph
+ */
+export type HygraphUser = Pick<HGContentTypes.User, 'id' | 'name' | 'kind'>;
 
 export interface HygraphApiClientOptions {
     projectId: string;
@@ -160,48 +140,6 @@ export interface HygraphApiClientOptions {
     managementToken: string;
     componentQueryNestingLevel?: number;
     logger: StackbitTypes.Logger;
-}
-
-export interface HygraphAssetUploadOptions {
-    fileName: string;
-    mimeType: string;
-    base64?: string;
-    url?: string;
-}
-
-export interface HygraphCreateAssetWithURLResponse {
-    id: string;
-    url: string;
-    upload: {
-        status: string;
-        error: {
-            code: string;
-            message: string;
-        };
-    };
-}
-
-export interface HygraphCreateAssetWithPostDataResponse {
-    id: string;
-    url: string;
-    upload: {
-        status: string;
-        expiresAt: string;
-        error: {
-            code: string;
-            message: string;
-        };
-        requestPostData: {
-            url: string;
-            date: string;
-            key: string;
-            signature: string;
-            algorithm: string;
-            policy: string;
-            credential: string;
-            securityToken: string;
-        };
-    };
 }
 
 export class HygraphApiClient {
@@ -222,7 +160,8 @@ export class HygraphApiClient {
 
         let contentApi = options.contentApi;
         // Replace "High performance endpoint" with "Regular read & write endpoint".
-        // This is to get read-after-write consistency. https://hygraph.com/docs/api-reference/basics/caching
+        // This is to get read-after-write consistency.
+        // More info https://hygraph.com/docs/api-reference/basics/caching
         const match = contentApi.match(
             /https:\/\/(?<region>[\w-]+)\.cdn.hygraph.com\/content\/(?<hash>\w+)\/(?<environment>[\w-]+)/
         );
@@ -234,25 +173,22 @@ export class HygraphApiClient {
         }
 
         this.contentClient = new GraphQLClient(contentApi, {
-            headers: {
-                Authorization: `Bearer ${options.managementToken}`
-            }
+            headers: { Authorization: `Bearer ${options.managementToken}` }
         });
         this.managementClient = new GraphQLClient(options.managementApi, {
-            headers: {
-                Authorization: `Bearer ${options.managementToken}`
-            }
+            headers: { Authorization: `Bearer ${options.managementToken}` }
         });
     }
 
     async getSchema() {
-        const result = await this.managementClient.request<HygraphTypes.Query>(getSchema, {
+        const result = await this.managementClient.request<HGManageTypes.Query>(getSchema, {
             projectId: this.projectId,
             environmentName: this.environment
         });
 
         const environment = result.viewer.project?.environment;
         if (environment) {
+            // Rename all GraphQL aliases back to the original names
             const { models, components, ...rest } = environment.contentModel;
             environment.contentModel = {
                 ...rest,
@@ -272,7 +208,8 @@ export class HygraphApiClient {
     }
 
     async getWebhooks() {
-        const result = await this.managementClient.request<GetWebhooksResult>(getWebhooks, {
+        type ResponseType = { viewer: { project?: { environment: { id: string; webhooks: HygraphWebhook[] } } } };
+        const result = await this.managementClient.request<ResponseType>(getWebhooks, {
             projectId: this.projectId,
             environmentName: this.environment
         });
@@ -283,7 +220,8 @@ export class HygraphApiClient {
     }
 
     async createWebhook({ url, environmentId }: { url: string; environmentId: string }) {
-        const result = await this.managementClient.request<CreateWebhookResponse>(createWebhook, {
+        type ResponseType = { createWebhook: { createdWebhook: HygraphWebhook } };
+        const result = await this.managementClient.request<ResponseType>(createWebhook, {
             environmentId: environmentId,
             url: url
         });
@@ -291,7 +229,8 @@ export class HygraphApiClient {
     }
 
     async updateWebhook({ webhookId }: { webhookId: string }) {
-        const result = await this.managementClient.request<UpdateWebhookResponse>(updateWebhook, {
+        type ResponseType = { updateWebhook: { updatedWebhook: HygraphWebhook } };
+        const result = await this.managementClient.request<ResponseType>(updateWebhook, {
             webhookId: webhookId
         });
         return result.updateWebhook.updatedWebhook;
@@ -347,7 +286,14 @@ export class HygraphApiClient {
                     this.logger.debug(query);
                 }
                 query = removeNewLinesAndCollapseSpaces(query);
-                const queryResult = await this.contentClient.request<HygraphEntryConnectionResult>(query);
+                type ResponseType = Record<
+                    string,
+                    {
+                        edges: { node: HygraphEntry }[];
+                        pageInfo: Pick<HGContentTypes.PageInfo, 'hasNextPage' | 'pageSize'>;
+                    }
+                >;
+                const queryResult = await this.contentClient.request<ResponseType>(query);
                 const typesWithNextPage: string[] = [];
 
                 for (const [queryModelName, modelResult] of Object.entries(queryResult)) {
@@ -645,7 +591,7 @@ export class HygraphApiClient {
                 type ResponseType = {
                     assetsConnection: {
                         edges: { node: HygraphAsset }[];
-                        pageInfo: Pick<PageInfo, 'hasNextPage' | 'pageSize'>;
+                        pageInfo: Pick<HGContentTypes.PageInfo, 'hasNextPage' | 'pageSize'>;
                     };
                 };
                 const queryResult = await this.contentClient.request<ResponseType>(getAssets, {
@@ -705,7 +651,12 @@ export class HygraphApiClient {
         }
     }
 
-    async uploadAsset(options: HygraphAssetUploadOptions) {
+    async uploadAsset(options: {
+        fileName: string;
+        mimeType: string;
+        base64?: string;
+        url?: string;
+    }): Promise<string | undefined> {
         try {
             if (options.url) {
                 this.logger.debug(`Create asset from URL: ${options.url}, fileName: ${options.fileName}`);
@@ -771,12 +722,21 @@ export class HygraphApiClient {
         }
     }
 
-    private async createAssetWithURL(options: {
-        fileName: string;
-        url: string;
-    }): Promise<HygraphCreateAssetWithURLResponse> {
+    private async createAssetWithURL(options: { fileName: string; url: string }) {
         try {
-            type ResponseType = { createAsset: HygraphCreateAssetWithURLResponse };
+            type ResponseType = {
+                createAsset: {
+                    id: string;
+                    url: string;
+                    upload: {
+                        status: string;
+                        error: {
+                            code: string;
+                            message: string;
+                        };
+                    };
+                };
+            };
             const response = await this.contentClient.request<ResponseType>(createAssetWithURL, {
                 fileName: options.fileName,
                 uploadUrl: options.url
@@ -788,11 +748,32 @@ export class HygraphApiClient {
         }
     }
 
-    private async createAssetWithPostData(options: {
-        fileName: string;
-    }): Promise<HygraphCreateAssetWithPostDataResponse> {
+    private async createAssetWithPostData(options: { fileName: string }) {
         try {
-            type ResponseType = { createAsset: HygraphCreateAssetWithPostDataResponse };
+            type ResponseType = {
+                createAsset: {
+                    id: string;
+                    url: string;
+                    upload: {
+                        status: string;
+                        expiresAt: string;
+                        error: {
+                            code: string;
+                            message: string;
+                        };
+                        requestPostData: {
+                            url: string;
+                            date: string;
+                            key: string;
+                            signature: string;
+                            algorithm: string;
+                            policy: string;
+                            credential: string;
+                            securityToken: string;
+                        };
+                    };
+                };
+            };
             const response = await this.contentClient.request<ResponseType>(createAssetWithPostData, {
                 fileName: options.fileName
             });
@@ -808,6 +789,31 @@ export function wrapEnumValue(value: string) {
     return { __enum: value };
 }
 
+
+/**
+ * Generates a GraphQL query to fetch an entry and its fields.
+ * The query is generated with system fields as well as user-defined fields.
+ * Uses the entry's model to generate the entry's user-defined fields.
+ *
+ * @example
+ * ```graphql
+ * query {
+ *   posts {
+ *     __typename
+ *     id
+ *     createdAt
+ *     createdBy { id name kind }
+ *     updatedAt
+ *     updatedBy { id name kind }
+ *     publishedAt
+ *     publishedBy { id name kind }
+ *     stage
+ *     documentInStages(stages: PUBLISHED) { stage updatedAt }
+ *     <...entry fields generated using convertFieldsToQueryAST()>
+ *   }
+ * }
+ * ```
+ */
 function defaultDocumentQueryFields(options: {
     model: ModelWithContext;
     getModelByName: (modelName: string) => ModelWithContext | undefined;
@@ -833,6 +839,56 @@ function defaultDocumentQueryFields(options: {
     };
 }
 
+/**
+ * Generates a part of a GraphQL query to fetch entry's fields.
+ * Uses the entry's model to generate the fields. Any localized fields are
+ * fetched using the "localization" property, and any non-localized fields
+ * fetched as direct children of an entry.
+ *
+ * @example
+ * Given a model with the following fields:
+ * ```js
+ * model: {
+ *   fields: [
+ *     { type: 'string', name: 'title', localized: true },
+ *     { type: 'slug', name: 'slug' },
+ *     { type: 'markdown', name: 'content', localized: true },
+ *     { type: 'reference', name: 'author', models: ['Person'] },
+ *     { type: 'model', name: 'sections', models: ['Hero', 'CTA', 'RelatedPosts'] }
+ *   ]
+ * }
+ * ```
+ * The generated GraphQL query part
+ * ```graphql
+ * {
+ *   slug
+ *   author {
+ *     __typename
+ *     id
+ *   }
+ *   sections {
+ *     __typename
+ *     ... on Hero {
+ *       id
+ *       <...hero_fields>
+ *     }
+ *     ... on CTA {
+ *       id
+ *       <...cta_fields>
+ *     }
+ *     ... on RelatedPosts {
+ *       id
+ *       <...relatedPosts_fields>
+ *     }
+ *   }
+ *   localizations(includeCurrent: true) {
+ *     locale
+ *     title
+ *     content
+ *   }
+ * }
+ * ```
+ */
 function convertFieldsToQueryAST({
     model,
     getModelByName,
@@ -963,16 +1019,9 @@ function convertFieldsToQueryAST({
                     fieldAst[field.name] = {
                         __typename: 1,
                         __on: {
-                            ...fieldOrListItem.models.reduce((accum: any, modelName) => {
-                                const model = getModelByName(modelName);
-                                if (!model) {
-                                    return accum;
-                                }
-                                accum[modelName] = {
-                                    id: 1
-                                };
-                                return accum;
-                            }, {})
+                            Entity: {
+                                id: 1
+                            }
                         }
                     };
                 } else if (fieldOrListItem.models.length === 1 && !multiModelField) {
@@ -1094,13 +1143,13 @@ function removeAliasFieldNames(entry?: HygraphEntry): HygraphEntry {
     );
 }
 
-function removeSchemaAliases<Type extends HygraphTypes.IModel | HygraphTypes.Component>(entity: Type): Type {
+function removeSchemaAliases<Type extends HGManageTypes.IModel | HGManageTypes.Component>(entity: Type): Type {
     return {
         ...entity,
         fields: (entity.fields as AliasedHygraphField[]).map((field): HygraphField => {
             if ('type_simple' in field) {
                 const { type_simple, validations, ...restField } = field;
-                let convertedValidations: HygraphTypes.SimpleFieldValidations | undefined;
+                let convertedValidations: HGManageTypes.SimpleFieldValidations | undefined;
                 if (validations && 'range_float' in validations) {
                     const { range_float, ...restValidations } = validations;
                     convertedValidations = {

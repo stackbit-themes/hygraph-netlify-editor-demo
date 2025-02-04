@@ -315,6 +315,21 @@ export class HygraphContentSource
         const isAsset = modelName === 'Asset';
         this.logger.debug(`got webhook request, ${modelName}:${data.operation}`);
 
+        /**
+         * When getting a webhook with content update, we don't want to use the
+         * data from the webhook, but fetch the updated entry or the asset from
+         * content API. This ensures that the data is always fetched from the
+         * same endpoint and converted from the same types (the webhook data is
+         * different from the data returned from the GraphQL content API, and
+         * cannot be controlled).
+         * However, the Hygraph content API doesn't always follow read-after-write
+         * consistency: https://hygraph.com/docs/api-reference/basics/caching#consistency
+         * So trying to fetch the updated entry or the asset right after the
+         * webhook was called, will not always return the updated version that
+         * was included with the webhook.
+         * To solve this, we retry fetching the content several times until
+         * the fetched entry's updatedAt is greater than the cached entry.
+         */
         function isNewerVersion(
             hygraphItem: HygraphAsset | HygraphEntry,
             cachedItem?: StackbitTypes.Asset | StackbitTypes.Document
@@ -327,12 +342,13 @@ export class HygraphContentSource
             }
             if (data.operation === 'publish') {
                 const publishedItem = hygraphItem.documentInStages?.find((doc) => doc.stage === 'PUBLISHED');
-                return publishedItem && publishedItem.updatedAt === hygraphItem.updatedAt;
+                return !!publishedItem && publishedItem.updatedAt === hygraphItem.updatedAt;
             }
             if (data.operation === 'unpublish') {
                 const publishedItem = hygraphItem.documentInStages?.find((doc) => doc.stage === 'PUBLISHED');
                 return !publishedItem;
             }
+            return true;
         }
 
         switch (data.operation) {
@@ -344,6 +360,7 @@ export class HygraphContentSource
                     const cachedAsset = this.cache.getAssetById(data.data.id);
                     let hygraphAsset: HygraphAsset | undefined;
                     let tries = 0;
+                    let gotNewerVersion = false;
                     do {
                         if (tries > 0) {
                             this.logger.debug(
@@ -355,12 +372,15 @@ export class HygraphContentSource
                         if (!hygraphAsset) {
                             return;
                         }
-                    } while (!isNewerVersion(hygraphAsset, cachedAsset) && ++tries < 10);
-                    if (!isNewerVersion(hygraphAsset, cachedAsset)) {
+                        gotNewerVersion = isNewerVersion(hygraphAsset, cachedAsset)
+                    } while (!gotNewerVersion && ++tries < 10);
+
+                    if (!gotNewerVersion) {
                         this.logger.warn(
                             `Could not fetch updated asset from Hygraph after receiving ${data.operation} webhook!`
                         );
                     }
+
                     const asset = convertAsset({
                         hygraphAsset,
                         assetModelId: this.cache.getSchema().context.assetModelId,
@@ -375,6 +395,7 @@ export class HygraphContentSource
                     const cachedDocument = this.cache.getDocumentById(data.data.id);
                     let hygraphEntry: HygraphEntry | undefined;
                     let tries = 0;
+                    let gotNewerVersion = false;
                     do {
                         if (tries > 0) {
                             this.logger.debug(
@@ -390,12 +411,15 @@ export class HygraphContentSource
                         if (!hygraphEntry) {
                             return;
                         }
-                    } while (!isNewerVersion(hygraphEntry, cachedDocument) && ++tries < 10);
-                    if (!isNewerVersion(hygraphEntry, cachedDocument)) {
+                        gotNewerVersion = isNewerVersion(hygraphEntry, cachedDocument);
+                    } while (!gotNewerVersion && ++tries < 10);
+
+                    if (!gotNewerVersion) {
                         this.logger.warn(
                             `Could not fetch updated entry from Hygraph after receiving ${data.operation} webhook!`
                         );
                     }
+
                     const document = convertDocument({
                         hygraphEntry,
                         getModelByName: this.cache.getModelByName,

@@ -1,5 +1,5 @@
 # This is a Webstorm GraphQL configuration file.
-# It is used to generated introspected GraphQL schemas.
+# It is used to generated introspected GraphQL schemas to allow auto-completion in code.
 # Run the "hygraph_management" or "hygraph_content" endpoints via Webstorm
 # to generate gql-schemas/management.graphql and gql-schemas/content.graphql files.
 projects:

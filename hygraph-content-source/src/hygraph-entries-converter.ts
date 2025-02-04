@@ -74,6 +74,7 @@ export function convertDocument({
         return undefined;
     }
 
+    // Omit all the system fields and get only the user defined fields
     const hygraphFields = _.omit(hygraphEntry, SystemDocumentFields);
     const nestedModelsInfo = {};
     const modelId = model?.context?.internalId;

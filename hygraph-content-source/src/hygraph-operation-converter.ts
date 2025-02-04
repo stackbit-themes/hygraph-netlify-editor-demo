@@ -12,28 +12,26 @@ import { hexToColor } from './utils';
  *
  * ```js
  * const data = convertUpdateOperationFields({
- *   updateOperationFields,  // Map between field names and {@link StackbitTypes.UpdateOperationField}
- *   model,                  // The model for the new document
+ *   updateOperationFields,
+ *   model,
  *   getModelByName,
  *   getModelNameForDocumentId
  * });
  *
  * const query = gql`
- * mutation createDocument($data: ModelXCreateInput!) {
- *   createModelX(
- *     data: $data
- *   ) {
- *     ...ModelXFields
+ * mutation createEntry($data: ModelXCreateInput!) {
+ *   createModelX(data: $data) {
+ *     id
  *   }
  * }`
  *
  * client.request(query, { data });
  * ```
  *
- * @param updateOperationFields
- * @param model
- * @param getModelByName
- * @param getModelNameForDocumentId
+ * @param updateOperationFields Map between field names and {@link StackbitTypes.UpdateOperationField}
+ * @param model The model for the new document
+ * @param getModelByName A function that returns a model for a modelName
+ * @param getModelNameForDocumentId A function that returns a modelName for a documentId
  */
 export function convertUpdateOperationFields({
     updateOperationFields,
@@ -67,10 +65,28 @@ export function convertUpdateOperationFields({
  * parameter expected by the Hygraph's GraphQL update<MODEL> mutation for a given
  * document.
  *
- * @param operations
- * @param document
- * @param getModelByName
- * @param getModelNameForDocumentId
+ * ```js
+ * const data = convertOperations({
+ *   operations,
+ *   document,
+ *   getModelByName,
+ *   getModelNameForDocumentId
+ * });
+ *
+ * const query = gql`
+ * mutation updateEntry($entryId: String!, $data: ModelXCreateInput!) {
+ *   updateModelX(where: {id: $entryId} data: $data) {
+ *     id
+ *   }
+ * }`
+ *
+ * client.request(query, { data });
+ * ```
+ *
+ * @param operations List of {@link StackbitTypes.UpdateOperation}
+ * @param document The document to be updated
+ * @param getModelByName A function that returns a model for a modelName
+ * @param getModelNameForDocumentId A function that returns a modelName for a documentId
  */
 export function convertOperations({
     operations,
@@ -102,8 +118,8 @@ export function convertOperations({
                         });
                         // When setting primitive values inside a list, we must set the whole list
                         // because Hygraph doesn't support updating primitive values in lists by their position
-                        // If the field is not primitive, then the value returned by the convertUpdateOperationFieldToValue
-                        // will be compatible with adding values to lists and objects fields.
+                        // If the field is not primitive, then the value returned by the convertUpdateOperationFieldToValue()
+                        // will be compatible with adding it to lists or objects.
                         if (isListItem && isSimpleFieldType(operation.modelField.type)) {
                             const documentField = getDocumentFieldAtFieldPath({
                                 document,
@@ -172,8 +188,10 @@ export function convertOperations({
                             isListItem: true,
                             insertBeforeId
                         });
-                        // For scalar list items, the convertUpdateOperationFieldToValue returns single item,
-                        // but the updated value should be the whole list.
+                        // When inserting primitive values into a list, we must set the whole list
+                        // because Hygraph doesn't support inserting primitive values in lists by position.
+                        // If the field is not a primitive, then the value returned by the convertUpdateOperationFieldToValue()
+                        // will be compatible with inserting values into the list by position.
                         if (!isSimpleFieldType(operation.modelField.items.type)) {
                             const action = operation.modelField.items.type === 'model' ? 'create' : 'connect';
                             // when user inserts multiple referenced objects, there will be several successive operations,
@@ -199,8 +217,9 @@ export function convertOperations({
                             if (operation.modelField.items.type === 'enum') {
                                 newList = newList.map((value) => wrapEnumValue(value));
                             }
-                            // When adding new string/text items to lists from visual-editor, the value may be undefined,
+                            // When adding new string/text items to lists from visual-editor, the value will be undefined,
                             // this breaks GraphQL. Set the value to empty string to fix this behavior.
+                            // When adding numbers, the visual-editor automatically sets them to 0.
                             if (typeof value === 'undefined' && ['string', 'text'].includes(operation.item.type)) {
                                 value = '';
                             }
@@ -229,6 +248,9 @@ export function convertOperations({
                     document,
                     getModelByName,
                     value: () => {
+                        // When removing primitive values from a list, we must set the whole list
+                        // because Hygraph doesn't support removing primitive values from lists by position.
+                        // If the field is not a primitive, then we can remove it by id.
                         if (isSimpleFieldType(modelField.items.type)) {
                             const documentField = getDocumentFieldAtFieldPath({
                                 document,
@@ -364,10 +386,10 @@ export function convertOperations({
  *
  * ```js
  * const data = createUpdateObjectFromFieldPath({
- *   document,       // The document of ModelX to update
- *   fieldPath,      // The path of the field to update
+ *   document,
+ *   fieldPath,
  *   getModelByName,
- *   value           // The callback function that computes the new value
+ *   value
  * });
  *
  * const query = gql`
@@ -376,7 +398,7 @@ export function convertOperations({
  *     where: { id: "OBJECT_ID" }
  *     data: $data
  *   ) {
- *      ...ModelXFields
+ *     id
  *   }
  * }`
  *
@@ -445,12 +467,14 @@ export function convertOperations({
  *   fieldPath: ["author"],
  *   getModelByName,
  *   value: (fieldName, model) => {
- *     return { connect: { id: "REFERENCE_ID" } }
+ *     return { connect: { id: "AUTHOR_ID" } }
  *   }
  * })
  * =>
  * {
- *   "title": "hello world"
+ *   author: {
+ *     connect: { id: "AUTHOR_ID" }
+ *   }
  * }
  * ```
  *
