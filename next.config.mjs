@@ -13,7 +13,8 @@ const nextConfig = {
         port: "",
       },
       {
-        hostname: 'us-west-2.graphassets.com'
+        protocol: 'https',
+        hostname: '**.graphassets.com'
       }
     ],
   },
