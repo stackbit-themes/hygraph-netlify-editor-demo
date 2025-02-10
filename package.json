@@ -20,6 +20,7 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@stackbit/cms-hygraph": "^1.1.0",
     "@stackbit/types": "^2.1.12",
     "@types/node": "^20.11.28",
     "@types/react": "^18.2.66",

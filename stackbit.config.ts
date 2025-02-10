@@ -1,11 +1,12 @@
 import type * as StackbitTypes from '@stackbit/types';
+import { HygraphContentSource } from '@stackbit/cms-hygraph';
 import { defineStackbitConfig } from '@stackbit/types';
-import { HygraphContentSource } from './hygraph-content-source/src';
 
 export default defineStackbitConfig({
   stackbitVersion: '~0.6.0',
   ssgName: 'nextjs',
   nodeVersion: '20',
+  useESM: true,
   contentSources: [
     new HygraphContentSource({
       projectId: process.env.HYGRAPH_PROJECT_ID!,
@@ -37,7 +38,6 @@ export default defineStackbitConfig({
     return options.documents.filter((document) => pageModels.includes(document.modelName)).map((document) => {
       const slug = (document.fields.slug as StackbitTypes.DocumentStringLikeFieldNonLocalized)?.value;
       const urlPath = slug === 'home' ? '/' : document.modelName === 'Pdp' ? `/pdp/${slug}` : slug;
-
       return {
         urlPath: urlPath,
         document: document
